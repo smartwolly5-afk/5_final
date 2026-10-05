@@ -1,0 +1,88 @@
+{% extends 'dictionary/base.html' %}
+{% block content %}
+<section class="hero">
+    <div class="hero-art">{{ m.silhouette('hero-ph') }}</div>
+    <div class="hero-inner">
+        <span class="hero-pill">{{ icon('book', 13) }} 국가별 전차 제원 사전</span>
+        <h1 class="hero-title">전차 사전</h1>
+        <p class="hero-desc">국가를 선택하면 계열 목록을, 계열을 선택하면 변형별 상세 제원을 단계적으로 확인할 수 있습니다.</p>
+        <form class="hero-search" method="get" action="{{ url_for('dictionary.home') }}">
+            <label class="search-box">
+                {{ icon('search', 15) }}
+                <input type="search" name="q" value="{{ q }}" placeholder="전차명, 별칭, 계열, 변형 검색 (예: T-72, 흑표)">
+            </label>
+            <select class="hero-select" name="type" aria-label="유형">
+                <option value="">유형 전체</option>
+                {% for v in types %}<option value="{{ v }}" {{ 'selected' if v == f_type }}>{{ v }}</option>{% endfor %}
+            </select>
+            <select class="hero-select" name="generation" aria-label="세대">
+                <option value="">세대 전체</option>
+                {% for v in generations %}<option value="{{ v }}" {{ 'selected' if v == f_gen }}>{{ v }}</option>{% endfor %}
+            </select>
+            <button class="hero-btn" type="submit">검색</button>
+            {% if q or f_type or f_gen %}<a class="hero-reset" href="{{ url_for('dictionary.home') }}">초기화</a>{% endif %}
+        </form>
+    </div>
+</section>
+
+{% if results is not none %}
+<section class="dict-section">
+    <h2 class="list-head">'{{ q }}' 검색 결과 <small>{{ results|length }}건</small></h2>
+    {% if results %}
+    <div class="panel table-panel">
+        <table class="d-table">
+            <thead><tr><th></th><th>정식 명칭</th><th>별칭</th><th>계열</th><th>변형</th><th>개발국</th><th>유형</th><th>세대</th></tr></thead>
+            <tbody>
+            {% for t in results %}
+            <tr data-href="{{ url_for('dictionary.tank', tank_id=t.tank_id) }}">
+                <td>{{ m.silhouette('sm') }}</td>
+                <td><a class="row-link" href="{{ url_for('dictionary.tank', tank_id=t.tank_id) }}">{{ display('canonical_name', t.canonical_name) }}</a></td>
+                <td>{{ display('aliases', t.aliases) }}</td>
+                <td>{{ family_of(t) }}</td>
+                <td>{{ display('variant_name', t.variant_name) }}</td>
+                <td>{{ country_of(t) }}</td>
+                <td>{{ display('tank_type', t.tank_type) }}</td>
+                <td>{{ display('generation', t.generation) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        {{ m.empty('검색 결과가 없습니다.') }}
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="dict-section">
+    <h2 class="list-head">국가 목록 <small>{{ countries|length }}개국</small></h2>
+    {% if countries %}
+    <div class="card-grid">
+        {% for c in countries %}
+        <a class="country-card" href="{{ url_for('dictionary.home', country=c.name) }}">
+            <div class="card-media">
+                {{ m.silhouette() }}
+                <span class="code-chip">{{ c.code }}</span>
+            </div>
+            <div class="card-body">
+                <div class="card-title-row">
+                    <span class="card-title">{{ c.name }}</span>
+                    <span class="card-arrow">{{ icon('arrow-right', 15) }}</span>
+                </div>
+                {% if c.en or c.region %}<div class="card-sub">{{ c.en }}{% if c.en and c.region %} · {% endif %}{{ c.region }}</div>{% endif %}
+                <div class="card-stats">
+                    <span>{{ icon('layers', 13) }} 계열 {{ c.families }}개</span>
+                    <span>{{ icon('grid', 13) }} 전차 {{ c.tanks }}종</span>
+                </div>
+                <div class="rep-row">{{ icon('star', 13) }} 대표 전차 <b>{{ (c.rep.canonical_name or variant_label(c.rep)) if c.rep else NA }}</b></div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% elif total %}
+        {{ m.empty('조건에 맞는 전차가 없습니다.') }}
+    {% else %}
+        {{ m.empty('등록된 전차 데이터가 없습니다. 데이터가 연결되면 국가별 카드가 표시됩니다.') }}
+    {% endif %}
+</section>
+{% endblock %}

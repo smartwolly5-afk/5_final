@@ -1,0 +1,29 @@
+{% import 'dictionary/macros.html' as m %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}전차 사전{% endblock %} - TANK</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dictionary.css') }}">
+</head>
+<body>
+<div class="main dict-main">
+    {% with active = 'dictionary' %}{% include '_nav.html' %}{% endwith %}
+
+    <div class="dict-body">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="footer">
+        <span><b>TANK</b> | Battlefield Damage Assessment for Smarter Decisions</span>
+    </footer>
+</div>
+<script>
+    document.querySelectorAll("tr[data-href]").forEach((tr) =>
+        tr.addEventListener("click", () => (location.href = tr.dataset.href)));
+</script>
+</body>
+</html>

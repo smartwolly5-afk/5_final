@@ -1,0 +1,84 @@
+{% extends 'dictionary/base.html' %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+{% set GROUP_ICONS = {'기본 정보': 'info', '크기·중량': 'box', '화력': 'crosshair', '방호': 'shield', '기동': 'gauge', '출처·신뢰도': 'file'} %}
+{{ m.crumbs([(country.name, url_for('dictionary.home', country=country.name)), (name, none)]) }}
+
+<section class="panel head-panel">
+    {{ m.silhouette('head-ph') }}
+    <div class="head-info">
+        <div class="head-meta"><span class="code-chip static">{{ country.code }}</span> {{ country.name }} · 계열</div>
+        <h1 class="head-title">{{ name }}</h1>
+        <dl class="head-kv">
+            <dt>제조사</dt><dd>{{ manufacturer or NA }}</dd>
+            <dt>운용국</dt><dd>{{ operators or NA }}</dd>
+        </dl>
+        <div class="chips">
+            <span class="chip">{{ icon('grid', 13) }} 변형 {{ variants|length }}종</span>
+            <span class="chip">{{ icon('calendar', 13) }} 도입 {{ years or NA }}</span>
+        </div>
+    </div>
+</section>
+
+<section class="dict-section">
+    <div class="pill-tabs">
+        {% for v in variants %}
+        <a class="pill-tab {{ 'active' if v is sameas selected }}" href="{{ tab_url(v) }}">{{ variant_label(v) }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="variant-head">
+        <div>
+            <h2 class="variant-name">{{ display('canonical_name', selected.canonical_name) }}</h2>
+            <div class="card-sub">{{ text(selected.tank_id) }} · {{ display('tank_type', selected.tank_type) }} · {{ display('generation', selected.generation) }}</div>
+        </div>
+        {{ display('spec_coverage_%', selected['spec_coverage_%']) }}
+    </div>
+
+    <div class="spec-grid">
+        {% for title, fields in groups %}
+        <div class="panel spec-panel">
+            {{ m.panel_head(GROUP_ICONS[title], title) }}
+            <div class="tile-grid">
+                {% for f in fields %}
+                <div class="tile {{ 'wide' if f in wide }}"><span>{{ LABELS[f] }}</span><b>{{ display(f, selected[f]) }}</b></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="dict-section">
+    <div class="panel">
+        {{ m.panel_head('columns', '변형 비교', '같은 계열 변형의 주요 제원') }}
+        {% if variants|length > 1 %}
+        <div class="compare-legend"><i class="diff-swatch"></i> 첫 번째 변형({{ variant_label(variants[0]) }})과 다른 값</div>
+        <div class="table-scroll">
+            <table class="d-table compare-table">
+                <thead>
+                <tr>
+                    <th>항목</th>
+                    {% for v in variants %}
+                    <th class="{{ 'cur' if v is sameas selected }}"><a href="{{ tab_url(v) }}">{{ variant_label(v) }}</a></th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in compare %}
+                <tr class="{{ 'differs' if row.differs }}">
+                    <th>{{ LABELS[row.field] }}</th>
+                    {% for cell, diff in row.cells %}
+                    <td class="{{ 'diff' if diff }}">{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p class="panel-note">이 계열에는 변형이 하나뿐이라 비교할 대상이 없습니다.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

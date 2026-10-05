@@ -1,0 +1,25 @@
+{# 공통 상단 바. include 전에 active = 'threat' | 'dictionary' 지정 #}
+<header class="topbar">
+    <div class="topbar-left">
+        <a class="brand" href="{{ url_for('index') }}">
+            <span class="brand-logo">{{ icon('shield', 18) }}</span>
+            <span class="brand-text">
+                <span class="brand-name">TANK</span>
+                <span class="brand-desc">전차 위협도 분석 · 제원 사전</span>
+            </span>
+        </a>
+        <nav class="nav">
+            <a class="nav-item {{ 'active' if active == 'threat' }}" href="{{ url_for('index') }}">{{ icon('radar') }} 위협도</a>
+            <a class="nav-item {{ 'active' if active == 'dictionary' }}" href="{{ url_for('dictionary.home') }}">{{ icon('book') }} 사전</a>
+        </nav>
+    </div>
+    <div class="clock-chip">{{ icon('clock', 14) }} <span id="clock"></span></div>
+</header>
+<script>
+    (() => {
+        const el = document.getElementById("clock");
+        const pad = (n) => String(n).padStart(2, "0");
+        const tick = () => { const d = new Date(); el.textContent = `${pad(d.getHours())}시 ${pad(d.getMinutes())}분 ${pad(d.getSeconds())}초`; };
+        tick(); setInterval(tick, 1000);
+    })();
+</script>

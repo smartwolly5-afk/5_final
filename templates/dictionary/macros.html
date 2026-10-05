@@ -1,0 +1,37 @@
+{# 이미지 컬럼이 없으므로 모든 카드·상세 화면에 공통 실루엣을 사용 #}
+{% macro silhouette(cls='') %}
+<div class="tank-ph {{ cls }}">
+    <svg viewBox="0 0 120 56" aria-hidden="true">
+        <rect class="s" x="40" y="10" width="32" height="13" rx="4"/>
+        <rect class="s" x="70" y="14" width="44" height="4" rx="2"/>
+        <path class="s" d="M14 25h88l8 9H6z"/>
+        <rect class="s" x="8" y="34" width="98" height="16" rx="8"/>
+        <circle class="w" cx="20" cy="42" r="4"/><circle class="w" cx="35" cy="42" r="4"/>
+        <circle class="w" cx="50" cy="42" r="4"/><circle class="w" cx="65" cy="42" r="4"/>
+        <circle class="w" cx="80" cy="42" r="4"/><circle class="w" cx="95" cy="42" r="4"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{% macro crumbs(items) %}
+<nav class="crumbs">
+    <a href="{{ url_for('dictionary.home') }}">사전</a>
+    {% for label, href in items %}
+        <span class="sep">{{ icon('chevron-right', 12) }}</span>
+        {% if href %}<a href="{{ href }}">{{ label }}</a>{% else %}<span class="here">{{ label }}</span>{% endif %}
+    {% endfor %}
+</nav>
+{% endmacro %}
+
+{# 아이콘 사각형 + 제목 + 부제로 된 패널 머리글 #}
+{% macro panel_head(ic, title, sub='', extra='') %}
+<div class="panel-head">
+    <span class="icon-box">{{ icon(ic) }}</span>
+    <div><div class="panel-title">{{ title }}</div>{% if sub %}<div class="panel-sub">{{ sub }}</div>{% endif %}</div>
+    {% if extra %}<div class="panel-extra">{{ extra }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro empty(msg) %}
+<div class="dict-empty">{{ silhouette('lg') }}<p>{{ msg }}</p></div>
+{% endmacro %}

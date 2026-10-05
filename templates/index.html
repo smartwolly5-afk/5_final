@@ -2,11 +2,88 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>전차 분류 사전</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TANK</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>전차 분류 사전</h1>
-    <p>프로젝트 초기 설정 중입니다.</p>
+<div class="layout" id="layout">
+    <!-- ===== 메인 영역 ===== -->
+    <div class="main">
+        {% with active = 'threat' %}{% include '_nav.html' %}{% endwith %}
+
+        <section class="section section-video">
+            <div class="section-head">
+                <h2 class="section-title"></h2>
+                <div class="upload">
+                    <button class="btn btn-outline" type="button"></button>
+                    <div class="file-chip">{{ analysis.video }} <span class="x">&times;</span></div>
+                    <button class="btn btn-primary" type="button"></button>
+                </div>
+            </div>
+
+            <div class="video-card">
+                <div class="video" id="video">
+                    <div class="video-tools">
+                        <button>&#10148;</button>
+                        <button>&#9906;</button>
+                        <button>&#9974;</button>
+                    </div>
+                    <div class="video-meta">{{ analysis.captured_at }} ({{ analysis.source }})</div>
+                    <!-- 바운딩 박스는 JS에서 그림 -->
+                </div>
+                <div class="player">
+                    <button class="play" type="button">&#9654;</button>
+                    <span class="time">{{ analysis.current }} / {{ analysis.duration }}</span>
+                    <div class="progress"><div class="progress-fill"></div></div>
+                    <button class="fullscreen" type="button">&#9974;</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="section section-rank">
+            <div class="section-head">
+                <h2 class="section-title"><span id="target-count"></span></h2>
+                <select id="threat-filter" class="select">
+                    <option value="all">All</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table class="rank-table">
+                    <thead>
+                    <tr>
+                        <th></th>
+                        <th>ID</th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th>AI Confidence</th>
+                        <th>Triage</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rank-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <span><b>TANK</b> | Battlefield Damage Assessment for Smarter Decisions</span>
+        </footer>
+    </div>
+
+    <!-- ===== 상세 패널 (전차 클릭 시 빈 창만 표시) ===== -->
+    <aside class="detail" id="detail" hidden>
+        <div class="detail-top">
+            <button class="icon-btn" id="detail-close" type="button">&times;</button>
+        </div>
+    </aside>
+</div>
+
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

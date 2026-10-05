@@ -1,0 +1,52 @@
+{% extends 'dictionary/base.html' %}
+{% block title %}{{ country.name }}{% endblock %}
+{% block content %}
+{{ m.crumbs([(country.name, none)]) }}
+
+<section class="panel head-panel">
+    {{ m.silhouette('head-ph') }}
+    <div class="head-info">
+        <div class="head-meta"><span class="code-chip static">{{ country.code }}</span>{% if country.region %} {{ country.region }}{% endif %}</div>
+        <h1 class="head-title">{{ country.name }}</h1>
+        {% if country.en %}<p class="head-desc">{{ country.en }}</p>{% endif %}
+        <div class="chips">
+            <span class="chip">{{ icon('layers', 13) }} 계열 {{ families|length }}개</span>
+            <span class="chip">{{ icon('grid', 13) }} 등록 변형 {{ variants }}종</span>
+            {% if rep %}<span class="chip chip-accent">{{ icon('star', 13) }} 대표 {{ rep.canonical_name or variant_label(rep) }}</span>{% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="dict-section">
+    <div class="list-bar">
+        <h2 class="list-head">계열 목록 <small>{{ families|length }}종</small></h2>
+        <div class="seg">
+            <a class="{{ 'on' if sort == 'year' }}" href="{{ url_for('dictionary.home', country=country.name, sort='year') }}">도입 연도순</a>
+            <a class="{{ 'on' if sort == 'name' }}" href="{{ url_for('dictionary.home', country=country.name, sort='name') }}">이름순</a>
+        </div>
+    </div>
+    {% if families %}
+    <div class="card-grid family-grid">
+        {% for f in families %}
+        <a class="panel family-card" href="{{ url_for('dictionary.family', family_name=f.name) }}">
+            <div class="family-top">
+                <span class="icon-box">{{ icon('shield') }}</span>
+                {% if f.generations %}<span class="gen-chip">{{ f.generations }}</span>{% endif %}
+            </div>
+            <div class="card-title">{{ f.name }}</div>
+            <div class="card-sub">변형 {{ f.variants }}종 · {{ f.types or NA }}</div>
+            <div class="mini-grid">
+                <div class="mini"><span>도입 연도</span><b>{{ f.years or NA }}</b></div>
+                <div class="mini"><span>대표 주포 구경</span><b>{{ f.caliber }}</b></div>
+                <div class="mini"><span>전투 중량</span><b>{{ display('combat_weight_t', f.rep.combat_weight_t) }}</b></div>
+                <div class="mini"><span>최고 속도</span><b>{{ display('max_road_speed_kmh', f.rep.max_road_speed_kmh) }}</b></div>
+            </div>
+            <span class="more-link">세부 제원 보기 {{ icon('arrow-right', 13) }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        {{ m.empty(country.name ~ '에 해당하는 전차 데이터가 없습니다.') }}
+    {% endif %}
+</section>
+{% endblock %}
