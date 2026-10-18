@@ -1,0 +1,24 @@
+/* 미확인 레지스트리 화면 (/unknowns). 표·배지·칩은 dashboard.css 를 그대로 쓴다. */
+.unk-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; padding: 0 20px 16px; }
+.unk-list { display: flex; flex-direction: column; min-height: 0; }
+.unk-note { margin: 0; }
+.unk-table td { font-size: 14px; }
+.unk-detail { border-left: 1px solid var(--border); padding: 16px 0 0 18px; overflow-y: auto; min-height: 0; }
+.ud-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 12px 0 0; font-size: 13px; }
+.ud-facts dt { color: var(--muted); }
+.ud-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.ud-sub { margin: 18px 0 8px; font-size: 14px; }
+.ud-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.ud-gallery figure { margin: 0; }
+.ud-gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: var(--scope); border-radius: 6px; display: block; }
+.ud-gallery figcaption { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.ud-map { position: relative; height: 240px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface-soft); }
+
+@media (max-width: 1100px) {
+    .layout { height: auto; min-height: 100vh; }
+    .unk-grid { grid-template-columns: 1fr; }
+    .unk-detail { border-left: 0; border-top: 1px solid var(--border); padding: 16px 0 0; }
+}
+@media (max-width: 640px) {
+    .unk-grid { padding: 0 16px 16px; }
+}

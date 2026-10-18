@@ -1,0 +1,417 @@
+/* 위협도 대시보드 전용 스타일. 색상 변수(--stage1 등)는 static/style.css 의 :root 에 있다.
+   색 의미: --stage1 빨강(1단계·매우 높음) / --stage2 주황 / --stage3 노랑 / --stage4 파랑(4단계·낮음) / --purple 미확인 */
+
+/* ===== 전체 배치 ===== */
+.layout { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }  /* 화면 높이에 맞춘 세로 배치 */
+.body-grid {                         /* 본문 2단: 왼쪽(영상+랭킹) 68% / 오른쪽(패널) 32% */
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 68% 32%;
+    gap: 16px;
+    padding: 0 20px;
+}
+.main-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }  /* 왼쪽 세로 쌓기 */
+.section-video { flex: 2; min-height: 0; display: flex; flex-direction: column; }  /* 영상 영역 2 : 랭킹 1 */
+.section-rank { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ===== 섹션 제목 줄 ===== */
+.section { padding: 12px 0 0; }
+.section-head { display: flex; align-items: center; margin-bottom: 8px; gap: 16px; flex-wrap: wrap; }
+.section-title {                     /* 왼쪽 초록 막대가 붙은 제목 */
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    border-left: 4px solid var(--primary);
+    padding-left: 12px;
+    min-height: 24px;
+}
+.upload { display: flex; gap: 8px; align-items: center; margin-left: auto; }  /* 오른쪽 끝: 파일 이름 + 분석 시작 */
+.file-chip {                         /* 영상 파일 이름 칩 */
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 13px;
+}
+.file-chip span { color: var(--text); font-family: var(--mono); font-size: 12px; }
+
+/* ===== 버튼 ===== */
+.btn { border-radius: 8px; min-width: 96px; min-height: 36px; padding: 8px 16px; border: 1px solid transparent; font-weight: 600; }
+.btn-outline:hover { background: var(--surface-soft); }
+.btn:active { transform: scale(.98); }                                  /* 누르는 느낌 */
+.btn, .btn:active { transition: background .12s, transform .1s; }
+.btn-outline { background: var(--surface); border-color: var(--border); color: var(--text); }  /* 버튼은 모두 흰 바탕 + 검정 글씨 (색은 위협 단계 표시에만 씀) */
+.icon-btn { background: none; border: 0; font-size: 22px; color: var(--muted); line-height: 1; }  /* 아이콘만 있는 버튼 */
+
+/* ===== 상단 실시간 탐지 카운트 ===== */
+.count-bar { display: flex; align-items: center; flex-wrap: wrap; }
+.cb-item {                           /* 전체·전차·기갑차… 한 칸 */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 12px;
+    border-right: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+}
+.cb-item:last-child { border-right: 0; }
+.cb-item .ic { color: var(--muted); }
+.cb-label { white-space: nowrap; }
+.cb-item b { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; transition: color .15s; }  /* 숫자 */
+.cb-item.cb-new, .cb-item.cb-new .ic, .cb-item.cb-new b { color: var(--stage1); }  /* '신규'는 빨강 */
+.cb-item b.pulse { animation: pulse .5s ease-out; }  /* 값이 바뀌면 잠깐 커졌다 돌아옴 */
+@keyframes pulse { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* ===== 영상 ===== */
+.video-card {                        /* 영상 + 재생바 묶음 */
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    flex: 1;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+}
+.video {                             /* 감시 화면: 어두운 올리브 바탕 + 옅은 격자 (영상·사진이 오면 그 위에 깔림) */
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background:
+        linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px) 0 0 / 10% 10%,
+        linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px) 0 0 / 10% 10%,
+        var(--scope);
+}
+.video::before {                     /* 네 모서리 조준 꺾쇠 */
+    content: "";
+    position: absolute;
+    inset: 10px;
+    pointer-events: none;
+    --b: linear-gradient(rgba(255, 255, 255, .4), rgba(255, 255, 255, .4));
+    background:
+        var(--b) top left / 18px 2px, var(--b) top left / 2px 18px,
+        var(--b) top right / 18px 2px, var(--b) top right / 2px 18px,
+        var(--b) bottom left / 18px 2px, var(--b) bottom left / 2px 18px,
+        var(--b) bottom right / 18px 2px, var(--b) bottom right / 2px 18px;
+    background-repeat: no-repeat;
+}
+.video-meta {                        /* 오른쪽 위 촬영일·출처 */
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    font-family: var(--mono);
+    background: rgba(0, 0, 0, .45);
+    color: rgba(255, 255, 255, .85);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 2;
+}
+
+/* --- 프레임: 원본 이미지 + 박스. 크기는 JS fitFrame 이 원본 비율로 맞춤 (박스 % 좌표가 사진과 일치) --- */
+.frame { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); }
+.frame img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.frame img[hidden] { display: none; }
+
+/* --- 영상 A/B 탭 --- */
+.video-tabs { display: flex; gap: 4px; }
+.video-tabs[hidden] { display: none; }
+.video-tabs button { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 6px; padding: 4px 10px; font-size: 13px; }
+.video-tabs button:hover { background: var(--surface-soft); }
+.video-tabs button[aria-selected="true"] { border-color: var(--text); color: var(--text); font-weight: 700; }
+
+/* --- 부품 (안테나·cope cage): 흰 점선 작은 박스 + 이름. 클릭은 아래 표적 박스로 통과 --- */
+.part { position: absolute; border: 1.5px dotted rgba(255, 255, 255, .95); pointer-events: none; z-index: 1; }
+.part-label {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 12px;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+
+/* --- 바운딩 박스 (색 = 소속 군집 대응단계) --- */
+.bbox { position: absolute; border: 2px solid var(--c); cursor: pointer; transition: box-shadow .15s, border-width .1s; }
+.bbox.unknown { border-style: dashed; --c: var(--purple) !important; }  /* 미확인은 보라 점선 */
+.bbox:hover { box-shadow: 0 0 0 2px rgba(255, 255, 255, .35); }
+.bbox.selected { border-width: 3px; box-shadow: 0 0 0 3px rgba(255, 255, 255, .7), 0 0 24px color-mix(in srgb, var(--c) 60%, transparent); }  /* 선택된 표적 */  /* 선택된 표적 */
+.bbox.stage1 { --c: var(--stage1); }
+.bbox.stage2 { --c: var(--stage2); }
+.bbox.stage3 { --c: var(--stage3); }
+.bbox.stage4 { --c: var(--stage4); }
+.bbox-label {                        /* 박스 위 'Tank-03 · 93%' 라벨 */
+    position: absolute;
+    bottom: 100%;
+    left: -2px;
+    background: var(--c);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 3px 3px 0 0;
+    white-space: nowrap;
+    cursor: help;
+}
+.bbox-label.label-below { bottom: auto; top: 100%; border-radius: 0 0 3px 3px; }  /* 다른 라벨과 겹치면 아래로 */
+.bbox-unk-mark {                     /* 미확인 표적 오른쪽 위 '?' */
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--purple);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+}
+.bbox-legend {                       /* 영상 오른쪽 아래 범례 (꺾쇠 안쪽) */
+    position: absolute;
+    bottom: 22px;
+    right: 22px;
+    z-index: 2;
+    background: rgba(0, 0, 0, .45);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .8);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.leg-swatch { display: inline-block; width: 16px; height: 0; border-top: 2px solid #fff; margin-right: 6px; vertical-align: middle; }
+.leg-swatch.dashed { border-top-style: dashed; }
+.leg-swatch.purple { border-top-color: var(--purple); }
+.leg-swatch.dotted { border-top-style: dotted; }
+
+/* --- 재생바 (실제 영상 연결 전 모양만) --- */
+.player { display: flex; align-items: center; gap: 16px; padding: 6px 16px; }
+.play, .fullscreen { background: none; border: 0; font-size: 18px; color: var(--text); }
+.play:disabled, .fullscreen:disabled { color: var(--border); cursor: not-allowed; }  /* 영상 연결 전 */
+.time { color: var(--muted); white-space: nowrap; }
+.progress { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; }
+.progress-fill { width: 0; height: 100%; background: var(--primary); border-radius: 2px; }
+
+/* ===== 위협도 랭킹 표 ===== */
+.table-wrap { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: auto; flex: 1; min-height: 0; }
+.rank-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: center; }  /* 열 폭은 index.html colgroup */
+.rank-table thead th { position: sticky; top: 0; }  /* 스크롤해도 머리글 고정 */
+.rank-table th {
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-weight: 500;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rank-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.rank-table tbody tr { cursor: pointer; transition: background .12s; }
+.rank-table tbody tr:hover { background: var(--surface-soft); }
+.rank-table tbody tr.selected { background: var(--primary-soft); outline: 2px solid var(--primary); outline-offset: -2px; }  /* 선택 행 */
+.rank-table tbody tr:last-child td { border-bottom: 0; }
+.rank-table .col-left { text-align: left; }
+.rank-num { color: var(--text); font-weight: 600; }
+.rank-table td.tag-td { white-space: normal; }       /* 근거 태그 칸은 줄바꿈 허용 */
+.tag-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+.empty { color: var(--muted); padding: 24px !important; }
+
+/* --- 위협도 칸: 점수 + 단계 배지 --- */
+.threat-cell { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.threat-cell b { min-width: 36px; text-align: right; }
+.grade { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }  /* 단계 배지 */
+.grade.g1 { background: var(--stage1); color: #fff; }               /* 매우 높음 */
+.grade.g2 { background: var(--stage2-soft); color: var(--stage2); }  /* 높음 */
+.grade.g3 { background: var(--stage3-soft); color: var(--stage3); }  /* 보통 */
+.grade.g4 { background: var(--stage4-soft); color: var(--stage4); }  /* 낮음 */
+.grade.gx { background: var(--purple-soft); color: var(--purple); }  /* 산출 불가 (미확인·제원 없음) */
+
+/* --- 공통 칩·배지 --- */
+.chip {                              /* 근거 태그 한 개 */
+    display: inline-block;
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge {                             /* 둥근 상태 배지 (단계·Known/미확인) */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 76px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+}
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.stage1 { background: var(--stage1); color: #fff; }
+.badge.stage2 { background: var(--stage2-soft); color: var(--stage2); }
+.badge.stage3 { background: var(--stage3-soft); color: var(--stage3); }
+.badge.stage4 { background: var(--stage4-soft); color: var(--stage4); }
+.badge.known { background: var(--stage4-soft); color: var(--stage4); }
+.badge.unknown { background: var(--purple-soft); color: var(--purple); }
+.badge.variant { background: var(--chip-bg); color: var(--chip-text); }   /* 계열만 확정 (기종 미정) */
+
+/* 랭킹 표 기종 칸 앞 판정 상태 (색은 상세 패널 배지와 같음) */
+.st-badge { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.st-known { background: var(--stage4-soft); color: var(--stage4); }
+.st-variant { background: var(--chip-bg); color: var(--chip-text); }
+.st-unknown { background: var(--purple-soft); color: var(--purple); }
+.muted { color: var(--muted); font-size: 13px; }
+
+/* ===== 오른쪽 패널 묶음 ===== */
+.detail-right { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); background: var(--bg); overflow-y: auto; }
+.panel { padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+/* --- (A) 상황 대응수준: 군집 대응단계 --- */
+.pa-head { display: flex; align-items: center; gap: 8px; }
+.pa-label { font-size: 13px; color: var(--muted); font-weight: 600; margin-right: auto; }
+
+/* 단계 사다리: 1~4 를 한 줄에. 지금 단계만 단계 색으로 칠하고 나머지는 회색 → 몇 단계인지와 얼마나 심각한지를 한눈에 */
+.stage-ladder { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.stage-ladder li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-size: 12px;
+    border: 2px solid transparent;
+    transition: background .2s, color .2s;
+}
+.stage-ladder b { font-size: 20px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stage-ladder li.stage1 { --c: var(--stage1); }
+.stage-ladder li.stage2 { --c: var(--stage2); }
+.stage-ladder li.stage3 { --c: var(--stage3); }
+.stage-ladder li.stage4 { --c: var(--stage4); }
+.stage-ladder li.on { background: var(--c); color: #fff; font-weight: 600; }  /* 화면에 적용된 단계 */
+.stage-ladder li.ai { border: 2px dashed var(--c); color: var(--c); }          /* 지휘관이 조정했을 때 AI 권고 단계 */
+.alert-info { font-size: 16px; }
+.alert-change { margin: 2px 0 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.alert-change:empty { display: none; }
+#pa-panel.flash { animation: flash-bg .4s ease-in-out 2; }  /* 단계가 올라가면 두 번 깜빡임 */
+@keyframes flash-bg { 0%, 100% { background: var(--surface); } 50% { background: var(--stage1-soft); } }
+.cluster-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cluster-item { border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 0 6px 6px 0; padding: 8px 10px; }  /* 왼쪽 띠 = 군집 단계 색 */
+.cluster-item.stage1 { --c: var(--stage1); }
+.cluster-item.stage2 { --c: var(--stage2); }
+.cluster-item.stage3 { --c: var(--stage3); }
+.cluster-item.stage4 { --c: var(--stage4); }
+.ci-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ci-head b { font-size: 14px; }
+.ci-tactic { margin-left: auto; color: var(--muted); font-size: 12px; }
+.ci-tactic.manual { color: var(--accent); font-weight: 700; }  /* 지휘관이 지정한 전술은 주황 강조 */
+.ci-reasons { margin-top: 4px; font-size: 12px; color: var(--muted); }
+.alert-override { margin: 8px 0 0; font-size: 13px; font-weight: 700; color: var(--accent); }
+.alert-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.alert-buttons .btn { min-width: 0; flex: 1; }
+.picker { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }  /* 단계 조정·전술 선택 펼침 영역 */
+.picker[hidden] { display: none; }
+.picker button, .picker select { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 6px; font: inherit; }
+.picker button { flex: 1; }
+.picker select { flex: 2; min-width: 0; }
+.alert-disclaimer { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+/* --- (B) 선택 표적 상세 --- */
+.detail-id { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.obj-id { font-size: 26px; font-weight: 800; }
+.conf { font-size: 13px; color: var(--muted); margin-left: auto; }   /* 탐지 신뢰도 */
+.conf b { color: var(--text); font-weight: 600; }
+.pb-score-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+.pb-score { font-size: 32px; font-weight: 800; }
+.pb-score small { font-size: 13px; font-weight: 500; color: var(--muted); }
+#pb-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.stat-row { display: flex; align-items: center; gap: 8px; }
+.stat-label { width: 48px; flex-shrink: 0; font-size: 12px; color: var(--muted); }
+.stat-track { flex: 1; height: 8px; background: var(--surface-soft); border-radius: 4px; overflow: hidden; }
+.stat-fill { display: block; height: 100%; background: var(--primary); border-radius: 4px; }  /* span 이라 block 이어야 width 가 먹음 */
+.stat-value { width: 78px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#pb-reasons { margin-bottom: 10px; }
+#pb-info { margin: 0 0 12px; }
+.pb-actions { display: flex; gap: 8px; }
+.pb-actions .btn { flex: 1; min-width: 0; }
+.pb-actions .btn[hidden] { display: none; }
+#pb-dict-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+.pb-crop { margin: 10px 0 0; display: flex; gap: 10px; align-items: center; }
+.pb-crop[hidden] { display: none; }
+.pb-crop img { height: 96px; max-width: 55%; object-fit: contain; border-radius: 6px; background: var(--scope); }
+.pb-crop figcaption { font-size: 12px; color: var(--muted); }
+
+/* --- (C) 미니맵 --- */
+.panel-c { flex: 1; min-height: 220px; margin: 14px 18px 18px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; position: relative; }
+#minimap { position: absolute; inset: 0; background: var(--surface-soft); }
+.map-note {                          /* 지도 오른쪽 위 '추정 위치' */
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 500;
+    background: rgba(255, 255, 255, .9);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.map-fail { position: absolute; inset: 0; z-index: 600; display: grid; place-items: center; background: var(--surface-soft); color: var(--muted); font-size: 13px; }
+.map-fail[hidden] { display: none; }
+
+/* ===== 화면 맨 위 경보 배너 (1단계일 때) ===== */
+.alert-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    z-index: 20;
+    background: var(--stage1);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 16px;
+    font-weight: 600;
+    animation: flash-banner .4s ease-in-out 2;
+}
+.alert-banner .icon-btn { color: #fff; }
+.alert-banner[hidden] { display: none; }
+@keyframes flash-banner { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+body.has-banner .layout { margin-top: 40px; }  /* 배너만큼 화면을 아래로 */
+
+/* ===== 접근성: 키보드 초점, 움직임 줄이기 ===== */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.bbox:focus-visible { outline-color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; }
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 1100px) {         /* 태블릿 이하: 오른쪽 패널을 아래로 */
+    .layout { height: auto; min-height: 100vh; }
+    .body-grid { grid-template-columns: 1fr; }
+    .detail-right { border-left: 0; border-top: 1px solid var(--border); overflow-y: visible; }
+    .section-video, .section-rank { flex: none; }
+    .video-card { min-height: 320px; }
+    .table-wrap { max-height: 40vh; }
+}
+@media (max-width: 640px) {
+    .body-grid { padding: 0 16px; }
+}

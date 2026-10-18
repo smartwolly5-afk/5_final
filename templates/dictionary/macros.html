@@ -1,0 +1,31 @@
+{# 이미지 컬럼이 없으므로 모든 카드·상세 화면에 공통 실루엣을 사용 #}
+{% macro silhouette(cls='') %}
+<div class="tank-ph {{ cls }}">
+    <svg viewBox="0 0 120 56" aria-hidden="true">
+        <rect class="s" x="40" y="10" width="32" height="13" rx="4"/>
+        <rect class="s" x="70" y="14" width="44" height="4" rx="2"/>
+        <path class="s" d="M14 25h88l8 9H6z"/>
+        <rect class="s" x="8" y="34" width="98" height="16" rx="8"/>
+        <circle class="w" cx="20" cy="42" r="4"/><circle class="w" cx="35" cy="42" r="4"/>
+        <circle class="w" cx="50" cy="42" r="4"/><circle class="w" cx="65" cy="42" r="4"/>
+        <circle class="w" cx="80" cy="42" r="4"/><circle class="w" cx="95" cy="42" r="4"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{% macro crumbs(items) %}
+{# 뒤로가기: 사이트 안에서 왔으면 브라우저 뒤로(검색어·스크롤 유지), 아니면(주소 직접 입력) 바로 위 단계로 #}
+{% set up = (items | selectattr(1) | map(attribute=1) | list | last) if items | selectattr(1) | list else url_for('dictionary.home') %}
+<nav class="crumbs">
+    <a class="back-btn" href="{{ up }}" data-back>{{ icon('arrow-left', 14) }} 뒤로</a>
+    <a href="{{ url_for('dictionary.home') }}">사전</a>
+    {% for label, href in items %}
+        <span class="sep">›</span>
+        {% if href %}<a href="{{ href }}">{{ label }}</a>{% else %}<span class="here">{{ label }}</span>{% endif %}
+    {% endfor %}
+</nav>
+{% endmacro %}
+
+{% macro empty(msg) %}
+<div class="dict-empty">{{ silhouette('lg') }}<p>{{ msg }}</p></div>
+{% endmacro %}

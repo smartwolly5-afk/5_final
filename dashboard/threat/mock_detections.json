@@ -1,0 +1,18 @@
+{
+  "source": {"video": "ukraine_tank_001.mp4", "captured_at": "2024-03-15", "source": "OSINT",
+             "observer": {"lat": 48.60, "lon": 38.00, "heading_deg": 90}},
+  "detections": [
+    {"tracking_id": "Tank-03", "category": "전차",   "model": "T-90M",  "confidence": 0.93, "is_commander": true,  "cluster_id": "C-1", "bbox": {"x": 47, "y": 30, "w": 14, "h": 20}},
+    {"tracking_id": "Tank-04", "category": "전차",   "model": "T-90M",  "confidence": 0.90, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 60, "y": 45, "w": 14, "h": 19}},
+    {"tracking_id": "Tank-05", "category": "전차",   "model": "T-72B3", "confidence": 0.86, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 52, "y": 60, "w": 13, "h": 18}},
+    {"tracking_id": "Tank-06", "category": "전차",   "model": "T-72B3", "confidence": 0.84, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 68, "y": 22, "w": 13, "h": 18}},
+    {"tracking_id": "Tank-07", "category": "전차",   "model": "T-72B3", "confidence": 0.65, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 76, "y": 58, "w": 12, "h": 17}},
+    {"tracking_id": "Tank-08", "category": "전차",   "model": "T-72B3", "confidence": 0.88, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 82, "y": 35, "w": 12, "h": 17}},
+    {"tracking_id": "APC-01",  "category": "기갑차", "model": "BMP-2",  "confidence": 0.80, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 67, "y": 78, "w": 14, "h": 16}},
+    {"tracking_id": "Tank-01", "category": "전차",   "model": "T-72M1", "confidence": 0.91, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 8,  "y": 20, "w": 10, "h": 15}},
+    {"tracking_id": "Tank-02", "category": "전차",   "model": "T-72M1", "confidence": 0.85, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 20, "y": 38, "w": 11, "h": 16}},
+    {"tracking_id": "UNK-001", "category": "미확인", "model": null,     "confidence": 0.52, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 30, "y": 15, "w": 12, "h": 17}},
+    {"tracking_id": "Arty-01", "category": "포병",   "model": "2S19",   "confidence": 0.77, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 4,  "y": 62, "w": 12, "h": 16}},
+    {"tracking_id": "Inf-01",  "category": "인원",   "model": "보병 분대", "confidence": 0.70, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 22, "y": 78, "w": 8,  "h": 10}}
+  ]
+}

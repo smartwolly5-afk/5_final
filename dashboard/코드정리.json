@@ -1,0 +1,95 @@
+{
+  "_읽는법": "JSON은 주석 문법이 없어서 설명은 '_'로 시작하는 키에 적었다. 코드정리.py는 '_' 키를 전부 무시하고 읽는다. 값만 바꾸면 계산이 바뀐다.",
+
+  "settings": {
+    "_설명": "위협도 계산에 쓰는 숫자 전부 (원본: threat/config.py)",
+
+    "base_model": "M1A1",
+    "_base_model": "기준전차. 이 전차의 화력·기동력·방호력을 100점으로 두고 다른 전차와 비교한다. tank_specs 안에 같은 이름이 있어야 한다",
+
+    "gun_length_exp": 0.5,
+    "_gun_length_exp": "화력 = 구경 × 구경장^이값. 0.5는 제곱근이라 포신이 4배 길어도 화력은 2배만 오른다",
+
+    "height_exp": 0.5,
+    "_height_exp": "방호력 높이 보정 = (기준높이 / 내 높이)^이값. 차체가 낮을수록 맞을 면적이 작아서 방호력이 조금 오른다",
+
+    "quant_weights": {"firepower": 0.5, "mobility": 0.3, "protection": 0.2},
+    "_quant_weights": "MPI 종합 점수(참고용, 상세 패널에만 표시) = 화력×0.5 + 기동력×0.3 + 방호력×0.2. 순위에는 쓰지 않는다",
+
+    "tactic_weights": {
+      "1":  [0.45, 0.35, 0.20],
+      "2":  [0.21, 0.43, 0.36],
+      "3":  [0.38, 0.28, 0.34],
+      "4":  [0.61, 0.22, 0.17],
+      "5":  [0.72, 0.15, 0.12],
+      "6":  [0.54, 0.21, 0.25],
+      "7":  [0.19, 0.51, 0.30],
+      "8":  [0.17, 0.44, 0.39],
+      "9":  [0.18, 0.36, 0.46],
+      "10": [0.19, 0.43, 0.37]
+    },
+    "_tactic_weights": "전술 번호 → [화력, 기동력, 방호력] 가중치. 출처: 5_data/위협도_컬럼_산출.xlsx '전술가중치' 시트(전문가 설문). 5·10번은 합이 0.99라서 계산할 때 합으로 나눠 1로 맞춘다. 11번(전투근무지원)은 화력이 0이라 전차에는 안 쓰므로 일부러 넣지 않았다",
+
+    "threat_grades": [[100, "매우 높음"], [70, "높음"], [40, "보통"], [0, "낮음"]],
+    "_threat_grades": "전차 1대 위협도 단계. [하한 점수, 이름]. 위에서부터 보고 처음 만족하는 단계를 쓴다 (예: 85점 → 높음)",
+
+    "echelons": [[16, 3, "대대"], [5, 2, "중대"], [1, 1, "소대"]],
+    "_echelons": "제대 판정. [최소 대수, 제대가중치, 이름]. 군집 안 전차+기갑차 대수로 큰 것부터 검사한다 (예: 7대 → 중대, 가중치 2)",
+
+    "echelon_categories": ["전차", "기갑차"],
+    "_echelon_categories": "제대 대수에 넣는 분류. 포병·인원·미확인은 세지 않는다",
+
+    "level_thresholds": [[225, 1], [150, 2], [75, 3]],
+    "_level_thresholds": "군집 대응단계. [경계 점수, 단계]. 군집점수가 경계 이상이면 그 단계, 모두 미만이면 4단계",
+
+    "floor_tank_threat": 75,
+    "_floor_tank_threat": "4단계 하한 규칙: 위협도가 이 값 이상인 전차가 군집에 있으면 4단계 대신 3단계로 올린다",
+
+    "levels": {"1": "즉시 보고", "2": "우선 감시", "3": "지속 감시", "4": "관심"},
+    "_levels": "대응단계 번호 → 이름. 1이 가장 심각",
+
+    "camera_fov_deg": 60,
+    "_camera_fov_deg": "카메라 가로 시야각(도). 박스가 화면 가로 어디에 있는지로 방위를 계산할 때 쓴다",
+
+    "distance_k": 2000,
+    "_distance_k": "거리(m) ≈ 이값 × 10 / 박스 높이(%). 박스 높이가 화면의 10%면 2000m(2km)로 추정"
+  },
+
+  "tactic_names": {
+    "1": "기동·직접전투", "2": "병력수송·지원", "3": "대전차", "4": "간접화력", "5": "장거리화력", "6": "방공",
+    "7": "정찰·표적획득", "8": "공병", "9": "CBRN·연막차폐", "10": "지휘통제", "11": "전투근무지원"
+  },
+  "_tactic_names": "전술 번호 → 화면에 보이는 이름. 1번은 지휘전차 없는 군집의 기본값, 10번은 지휘전차가 있으면 자동 선택",
+
+  "tank_specs": {
+    "M1A1":   {"family": "M1 Abrams", "thermal": "gen1", "fcs": "digital", "caliber_mm": 120, "gun_length": 44, "stabilizer": "2axis",
+               "ke": 600, "ce": 700, "armor": "composite", "era": "none",     "pw": 26.3, "height": 2.44},
+    "T-90M":  {"family": "T-90",      "thermal": "gen2", "fcs": "digital", "caliber_mm": 125, "gun_length": 48, "stabilizer": "2axis",
+               "ke": 550, "ce": 650, "armor": "composite", "era": "relikt",   "pw": 23.5, "height": 2.23},
+    "T-72B3": {"family": "T-72",      "thermal": "gen2", "fcs": "digital", "caliber_mm": 125, "gun_length": 48, "stabilizer": "2axis",
+               "ke": 520, "ce": 600, "armor": "composite", "era": "kontakt5", "pw": 18.3, "height": 2.23},
+    "T-72M1": {"family": "T-72",      "thermal": "none", "fcs": "basic",   "caliber_mm": 125, "gun_length": 48, "stabilizer": "1axis",
+               "ke": 410, "ce": 490, "armor": "composite", "era": "none",     "pw": 18.8, "height": 2.23}
+  },
+  "_tank_specs": "기종명 → 제원 (원본: threat/tank_specs.json). 값은 출처 검증 전 샘플. 계산에 쓰는 것: caliber_mm 구경(mm), gun_length 구경장, ke/ce 정면 방호력(RHA 등가 mm, 반응장갑 제외), pw 출력대중량비(hp/t), height 차체 높이(m). thermal·fcs·stabilizer·armor·era는 지금 계산에 안 쓴다",
+
+  "mock_input": {
+    "source": {"video": "ukraine_tank_001.mp4", "captured_at": "2024-03-15", "source": "OSINT",
+               "observer": {"lat": 48.60, "lon": 38.00, "heading_deg": 90}},
+    "detections": [
+      {"tracking_id": "Tank-03", "category": "전차",   "model": "T-90M",  "confidence": 0.93, "is_commander": true,  "cluster_id": "C-1", "bbox": {"x": 47, "y": 30, "w": 14, "h": 20}},
+      {"tracking_id": "Tank-04", "category": "전차",   "model": "T-90M",  "confidence": 0.90, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 60, "y": 45, "w": 14, "h": 19}},
+      {"tracking_id": "Tank-05", "category": "전차",   "model": "T-72B3", "confidence": 0.86, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 52, "y": 60, "w": 13, "h": 18}},
+      {"tracking_id": "Tank-06", "category": "전차",   "model": "T-72B3", "confidence": 0.84, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 68, "y": 22, "w": 13, "h": 18}},
+      {"tracking_id": "Tank-07", "category": "전차",   "model": "T-72B3", "confidence": 0.65, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 76, "y": 58, "w": 12, "h": 17}},
+      {"tracking_id": "Tank-08", "category": "전차",   "model": "T-72B3", "confidence": 0.88, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 82, "y": 35, "w": 12, "h": 17}},
+      {"tracking_id": "APC-01",  "category": "기갑차", "model": "BMP-2",  "confidence": 0.80, "is_commander": false, "cluster_id": "C-1", "bbox": {"x": 67, "y": 78, "w": 14, "h": 16}},
+      {"tracking_id": "Tank-01", "category": "전차",   "model": "T-72M1", "confidence": 0.91, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 8,  "y": 20, "w": 10, "h": 15}},
+      {"tracking_id": "Tank-02", "category": "전차",   "model": "T-72M1", "confidence": 0.85, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 20, "y": 38, "w": 11, "h": 16}},
+      {"tracking_id": "UNK-001", "category": "미확인", "model": null,     "confidence": 0.52, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 30, "y": 15, "w": 12, "h": 17}},
+      {"tracking_id": "Arty-01", "category": "포병",   "model": "2S19",   "confidence": 0.77, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 4,  "y": 62, "w": 12, "h": 16}},
+      {"tracking_id": "Inf-01",  "category": "인원",   "model": "보병 분대", "confidence": 0.70, "is_commander": false, "cluster_id": "C-2", "bbox": {"x": 22, "y": 78, "w": 8,  "h": 10}}
+    ]
+  },
+  "_mock_input": "이미지 분석 모델 대신 쓰는 탐지 결과 12건 (원본: threat/mock_detections.json). source.observer = 카메라 위치(위경도)와 바라보는 방위. detections 한 건 = tracking_id 추적ID, category 분류(전차/기갑차/포병/인원/미확인), model 기종명(tank_specs 키와 같으면 제원 조회), confidence 탐지 신뢰도 0~1, is_commander 지휘전차 여부, cluster_id 군집ID, bbox 화면 기준 % 좌표"
+}

@@ -1,0 +1,11 @@
+{
+  "_note": "TODO: 모든 값은 출처 검증 전 샘플. ke/ce = 정면 RHA 등가(mm, 반응장갑 제외), pw = 출력대중량비(hp/t), height = 차체높이(m)",
+  "M1A1":   {"family": "M1 Abrams", "thermal": "gen1", "fcs": "digital",   "caliber_mm": 120, "gun_length": 44, "stabilizer": "2axis",
+             "ke": 600, "ce": 700, "armor": "composite",    "era": "none",     "pw": 26.3, "height": 2.44},
+  "T-90M":  {"family": "T-90",      "thermal": "gen2", "fcs": "digital",   "caliber_mm": 125, "gun_length": 48, "stabilizer": "2axis",
+             "ke": 550, "ce": 650, "armor": "composite",    "era": "relikt",   "pw": 23.5, "height": 2.23},
+  "T-72B3": {"family": "T-72",      "thermal": "gen2", "fcs": "digital",   "caliber_mm": 125, "gun_length": 48, "stabilizer": "2axis",
+             "ke": 520, "ce": 600, "armor": "composite",    "era": "kontakt5", "pw": 18.3, "height": 2.23},
+  "T-72M1": {"family": "T-72",      "thermal": "none", "fcs": "basic",     "caliber_mm": 125, "gun_length": 48, "stabilizer": "1axis",
+             "ke": 410, "ce": 490, "armor": "composite",    "era": "none",     "pw": 18.8, "height": 2.23}
+}

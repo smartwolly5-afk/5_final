@@ -1,0 +1,120 @@
+/* 공통 스타일: 색상 변수·기본 글꼴·상단 바·푸터. 위협도 대시보드 전용은 dashboard/static/dashboard.css,
+   전차 사전 전용은 static/dictionary.css */
+:root {
+    /* 올리브·크림 톤 (전술 콘솔 스타일) */
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-soft: #f6f5ef;
+    --border: #e4e2d6;
+    --text: #1f2419;
+    --muted: #77786a;
+    --primary: #4b7a3f;
+    --primary-strong: #3b6431;
+    --primary-soft: #e4eedc;
+    --accent: #df6d22;
+    --accent-soft: #fdeee2;
+
+    /* 대응단계: 1=즉시 보고(적) 2=우선 감시(주황) 3=지속 감시(황) 4=관심(청) — 국가위기경보 단계 이름·색 순서와 같음 — response_level.LEVELS 와 같은 색 */
+    --stage1: #c0312a;
+    --stage1-soft: #fbe2e0;
+    --stage2: #d0601c;
+    --stage2-soft: #fce8da;
+    --stage3: #b38010;
+    --stage3-soft: #faf0d9;
+    --stage4: #2f6690;
+    --stage4-soft: #e1ecf3;
+    --purple: #7a5bb5;
+    --purple-soft: #efe9f8;
+    --chip-bg: #eceae1;
+    --chip-text: #45463c;
+    --scope: #23271d;           /* 감시 화면 바탕 (어두운 올리브) */
+
+    --mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+
+button { font: inherit; cursor: pointer; }
+.topbar, .footer { flex-shrink: 0; }
+
+/* ===== 상단 바 ===== */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 20px;
+    height: 60px;
+    gap: 16px;
+    flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 28px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.brand-name { font-size: 15px; font-weight: 800; letter-spacing: .06em; }
+.brand-desc { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav { display: flex; align-items: center; gap: 6px; }
+.nav-item {
+    color: var(--muted);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: background .12s, color .12s;
+}
+.nav-item:hover { background: var(--surface-soft); color: var(--text); }
+.nav-item.active { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
+.clock-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 6px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.ic { flex-shrink: 0; }
+.user { white-space: nowrap; }
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    padding: 8px 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.footer b { color: var(--text); }
+
+/* ===== 반응형 (상단 바·푸터) ===== */
+@media (max-width: 1100px) {
+    .brand-desc { display: none; }
+}
+@media (max-width: 640px) {
+    .footer { padding: 8px 16px; }
+    .nav { gap: 2px; font-size: 13px; }
+    .nav-item { padding: 6px 8px; }
+    .topbar { padding: 0 16px; }
+    .topbar-left { gap: 10px; }
+    .clock-chip { display: none; }
+    .user { display: none; }
+}

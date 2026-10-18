@@ -1,0 +1,78 @@
+{% extends 'dictionary/base.html' %}
+{% block title %}{{ country.name }}{% endblock %}
+{% block content %}
+{{ m.crumbs([(country.name, none)]) }}
+
+<div class="country-body">
+<div class="country-head">
+<h1 class="country-title">{{ country.name }}{% if country.en %} <small>{{ country.en }}</small>{% endif %}</h1>
+<p class="country-count">전차 {{ total }}종</p>
+
+<form class="list-search" method="get" action="{{ url_for('dictionary.home') }}">
+    <input type="hidden" name="country" value="{{ country.name }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="이름으로 찾기" aria-label="이름 검색">
+</form>
+</div>
+
+<div class="country-list">
+{% macro th(key, label) %}
+<th><a class="{{ 'on' if sort == key }}" href="{{ url_for('dictionary.home', country=country.name, sort=key, q=q or none) }}">{{ label }}</a></th>
+{% endmacro %}
+<table class="list-table">
+    <thead><tr>{{ th('name', '이름') }}{{ th('type', '전차 종류') }}{{ th('kind', '구분') }}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">
+        <td><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a></td>
+        <td>{{ r.type }}</td>
+        <td>{% if not r.lin.variant %}원형{% elif r.lin.original %}<a href="{{ url_for('dictionary.tank', tank_id=r.lin.original.tank_id) }}">{{ r.lin.original.canonical_name }}</a>의 개량형{% else %}{{ r.lin.family }} 계열 개량형{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="list-empty">{{ "'" ~ q ~ "' 이름의 전차가 없습니다." if q else '등록된 전차가 없습니다.' }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<aside class="country-side">
+    <section class="panel side-panel">
+        <h2 class="side-title">전차 종류</h2>
+        <div class="side-bars">
+            {% for name, n in stats.types %}
+            <div class="sb-row">
+                <span class="sb-label">{{ name }}</span>
+                <span class="sb-track"><span class="sb-fill" style="width: {{ (n / stats.type_max * 100)|round(1) }}%"></span></span>
+                <span class="sb-n">{{ n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel side-panel">
+        <h2 class="side-title">위협도 분포</h2>
+        <p class="side-sub">화력·기동·방호 평균 (전술 가중치 없음) · 기준전차 M1A1 = 100</p>
+        <div class="side-bars">
+            {% for b in stats.bins %}
+            <div class="sb-row{{ ' sb-na' if b.stage is none }}">
+                <span class="sb-label">{{ b.label }}</span>
+                <span class="sb-track"><span class="sb-fill{{ ' stage%d'|format(b.stage) if b.stage }}" style="width: {{ (b.n / stats.bin_max * 100)|round(1) }}%"></span></span>
+                <span class="sb-n">{{ b.n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if stats.top %}
+    <section class="panel side-panel">
+        <h2 class="side-title">위협도 상위</h2>
+        <ol class="side-top">
+            {% for r in stats.top %}
+            <li><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a><b>{{ '%.1f'|format(r.score) }}</b></li>
+            {% endfor %}
+        </ol>
+    </section>
+    {% endif %}
+</aside>
+</div>
+{% endblock %}

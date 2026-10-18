@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>위협도 분석 보고서 - TANK</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">   <!-- 색상 변수 -->
+    <style>
+        /* 보고서 전용 (A4 인쇄 기준) */
+        body { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+        h1 { font-size: 22px; margin: 0 0 4px; }
+        h2 { font-size: 15px; margin: 22px 0 8px; border-left: 4px solid var(--primary); padding-left: 8px; }
+        .meta { color: var(--muted); font-size: 12px; margin: 0; }
+        .level { display: inline-block; padding: 4px 14px; color: #fff; font-weight: 700; }
+        .stage1 { background: var(--stage1); } .stage2 { background: var(--stage2); }
+        .stage3 { background: var(--stage3); } .stage4 { background: var(--stage4); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; }
+        th { background: var(--surface-soft); font-weight: 600; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .note { color: var(--muted); font-size: 11px; margin-top: 18px; }
+        .print-btn { float: right; padding: 6px 16px; border: 1px solid var(--border); background: var(--surface); }
+        @media print { .print-btn { display: none; } body { margin: 0; } }   /* 인쇄할 때 버튼 숨김 */
+    </style>
+</head>
+<body>
+<button class="print-btn" type="button" onclick="window.print()">인쇄</button>
+<h1>위협도 분석 보고서</h1>
+<p class="meta">작성 {{ generated }} · 영상 {{ r.source.video }} · 촬영 {{ r.source.captured_at }} ({{ r.source.source }})</p>
+
+{# ── 1. 종합 대응단계 ── #}
+<h2>1. 종합 대응단계</h2>
+<p>
+    <span class="level stage{{ r.alert.level }}">AI 권고 {{ r.alert.level }}단계 · {{ r.alert.label }}</span>
+    {% if stage and stage != r.alert.level %}
+    → <span class="level stage{{ stage }}">지휘관 결정 {{ stage }}단계 · {{ levels[stage] }}</span>
+    {% endif %}
+</p>
+<p>{{ r.alert.message }}</p>
+<p class="meta">탐지 전체 {{ r.counts.total }} · 전차 {{ r.counts.tank }} · 기갑차 {{ r.counts.apc }} · 포병 {{ r.counts.artillery + r.counts.infantry }}
+    · 신규 {{ r.counts.new }}</p>
+
+{# ── 2. 군집별 대응단계 ── #}
+<h2>2. 군집별 대응단계</h2>
+<table>
+    <thead><tr><th>군집</th><th>단계</th><th>제대</th><th>전술</th><th class="num">군집점수</th><th>판정 근거</th></tr></thead>
+    <tbody>
+    {% for c in r.clusters %}
+    <tr>
+        <td>{{ c.cluster_id }}</td>
+        <td>{{ c.level }}단계 · {{ c.label }}</td>
+        <td>{{ c.echelon.name }}급 {{ c.echelon.n }}대</td>
+        <td>{{ c.tactic_name }} ({{ c.tactic_source }})</td>
+        <td class="num">{{ c.score }}</td>
+        <td>{{ c.reasons|join(' / ') }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ── 3. 위협도 순위 (전차·미확인) ── #}
+<h2>3. 위협도 순위</h2>
+<table>
+    <thead><tr><th class="num">순위</th><th>ID</th><th>기종</th><th class="num">위협도</th><th>단계</th><th>군집</th><th>근거 태그</th></tr></thead>
+    <tbody>
+    {% for t in r.targets if t.rank %}
+    <tr>
+        <td class="num">{{ t.rank }}</td>
+        <td>{{ t.tracking_id }}</td>
+        <td>{{ t.model or '미확인' }}</td>
+        <td class="num">{{ t.threat if t.threat is not none else '산출 불가' }}</td>
+        <td>{{ t.grade or '-' }}</td>
+        <td>{{ t.cluster_id }}</td>
+        <td>{{ t.tags|join(', ') }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ── 4. 기타 표적 (순위 없음) ── #}
+{% set others = r.targets|selectattr('rank', 'none')|list %}
+{% if others %}
+<h2>4. 기타 표적</h2>
+<p>{% for t in others %}{{ t.tracking_id }} ({{ t.category }}{% if t.model %} · {{ t.model }}{% endif %}, {{ t.cluster_id }}){{ ', ' if not loop.last }}{% endfor %}</p>
+{% endif %}
+
+<p class="note">권고 사항이며 최종 판단은 지휘관이 합니다. 위치·거리는 추정값이며 기종 제원은 검증 전 샘플입니다.</p>
+</body>
+</html>
