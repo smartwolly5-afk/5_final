@@ -59,6 +59,37 @@
     </tbody>
 </table>
 
+{# ── 2-1. 지휘관 조치와 최종 단계 (DB 기록: cluster_assessment·commander_override) ── #}
+<h2>2-1. 지휘관 조치와 최종 단계</h2>
+<table>
+    <thead><tr><th>군집</th><th>AI 판정 단계</th><th>지휘관 조치</th><th>최종 단계</th></tr></thead>
+    <tbody>
+    {% for x in records %}
+    <tr>
+        <td>{{ x.cluster.cluster_id }}</td>
+        <td>{{ x.ai }}단계 · {{ levels[x.ai] }}</td>
+        <td>{% if x.actions %}{% for a in x.actions %}{{ a.item_name }} {{ a.before_text }} → {{ a.after_text }}{{ ' / ' if not loop.last }}{% endfor %}
+            {% elif not x.db %}기록 DB 를 읽지 못함{% else %}없음{% endif %}</td>
+        <td>{{ x.final }}단계 · {{ levels[x.final] }}{% if x.final != x.calc %} (계산 {{ x.calc }}단계, 단계 조정){% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% set acts = records|map(attribute='actions')|sum(start=[]) %}
+{% if acts %}
+<table style="margin-top: 8px">
+    <thead><tr><th>시각</th><th>군집</th><th>조치자</th><th>항목</th><th>전 → 후</th><th>단계 전 → 후</th></tr></thead>
+    <tbody>
+    {% for x in records %}{% for a in x.actions %}
+    <tr>
+        <td>{{ a.at }}</td><td>{{ x.cluster.cluster_id }}</td><td>{{ a.actor }}</td><td>{{ a.item_name }}</td>
+        <td>{{ a.before_text }} → {{ a.after_text }}</td><td>{{ a.level_before }} → {{ a.level_after }}</td>
+    </tr>
+    {% endfor %}{% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
 {# ── 3. 위협도 순위 (전차·미확인) ── #}
 <h2>3. 위협도 순위</h2>
 <table>
@@ -67,8 +98,8 @@
     {% for t in r.targets if t.rank %}
     <tr>
         <td class="num">{{ t.rank }}</td>
-        <td>{{ t.tracking_id }}</td>
-        <td>{{ t.model or '미확인' }}</td>
+        <td>{{ '★ ' if t.is_core }}{{ t.tracking_id }}</td>
+        <td>{{ t.model or t.unknown_group_id or '미확인' }}</td>
         <td class="num">{{ t.threat if t.threat is not none else '산출 불가' }}</td>
         <td>{{ t.grade or '-' }}</td>
         <td>{{ t.cluster_id }}</td>

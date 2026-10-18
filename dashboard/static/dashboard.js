@@ -373,7 +373,9 @@ function renderPanelB(t) {                                               // 오�
         : `<span class="muted">해당 없음</span>`;                            // 없으면 안내 문구
 
     const p = t.position;                                                   // 추정 위치
-    $("pb-info").textContent = `추정 거리 ${(p.distance_m / 1000).toFixed(1)} km · 방위 ${p.bearing_deg}° · 전술 ${t.tactic_name}`;  // m → km 변환해 표시
+    const cl = data.clusters.find((c) => c.cluster_id === t.cluster_id);   // 소속 군집 (지휘관 조치 전 단계 비교)
+    const before = cl && cl.level_before_override !== cl.level ? ` · 지휘관 조치 전 ${STAGE_SHORT[cl.level_before_override]}` : "";
+    $("pb-info").textContent = `추정 거리 ${(p.distance_m / 1000).toFixed(1)} km · 방위 ${p.bearing_deg}° · 전술 ${t.tactic_name}${before}`;  // m → km 변환해 표시
     $("pb-dict-link").style.display = t.model ? "" : "none";                // 기종 없으면 사전 링크 숨김 (#pb-dict-link 의 display 규칙이 hidden 보다 우선)
     $("pb-dict-link").href = `/dictionary?q=${encodeURIComponent(t.model || "")}`;  // 사전 페이지에서 기종명으로 검색
 }

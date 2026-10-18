@@ -181,3 +181,16 @@ def test_core_target_min_level_2_and_back():
     assert (rows[0]["level_before"], rows[0]["level_after"], rows[1]["level_after"]) == (3, 2, 3)
     assert c.patch("/api/threats/Tank-01/core-target", json={"core": "yes"}).status_code == 400
     assert c.patch("/api/threats/NOPE/core-target", json={"core": True}).status_code == 404
+
+
+# ───────── 6단계: 보고서·화면에 기록 표시 ─────────
+def test_report_shows_ai_actions_final():
+    c = client()
+    c.post("/api/analyze")
+    c.patch("/api/threats/Tank-01/core-target", json={"core": True}, headers={"X-User": "대대장"})
+    c.post("/api/clusters/C-1/stage", json={"stage": 1})
+    page = c.get("/report").get_data(as_text=True)
+    assert "AI 판정 단계" in page and "3단계 · 지속 감시" in page                    # 조치 전(AI) 단계
+    assert "핵심표적 Tank-01 해제 → Tank-01 지정" in page and "대대장" in page      # 조치 이력
+    assert "1단계 · 즉시 보고 (계산 2단계, 단계 조정)" in page                       # 최종 = 단계 조정, 계산은 2단계
+    assert "★ Tank-01" in page and "UNK-G0001" in page                             # 미확인 기종 칸에 그룹 ID

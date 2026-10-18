@@ -316,6 +316,40 @@ def unknowns_page():
     return render_template("dashboard/unknowns.html")
 
 
+ITEM_NAMES = {"tactic": "전술", "commander": "지휘전차", "core_target": "핵심표적", "stage": "단계 조정"}
+
+
+def _value_text(item, v):
+    """조치 전·후 값 → 보고서 문구."""
+    if v is None:
+        return "자동 (AI)" if item in ("tactic", "stage") else "없음"
+    if item == "tactic":
+        return f"{v}. {TACTIC_NAMES.get(v, '')}"
+    if item == "stage":
+        return f"{v}단계"
+    if item == "commander":
+        return f"{v['tracking_id']} {'지휘전차' if v['is_commander'] else '지휘전차 아님'}"
+    if item == "core_target":
+        return f"{v['tracking_id']} {'지정' if v['core'] else '해제'}"
+    return str(v)
+
+
+def _cluster_records(run):
+    """보고서용 군집별 'AI 판정 → 지휘관 조치 → 최종 단계'와 조치 이력 (DB commander_override). DB 를 못 읽으면 이력 없이."""
+    out = []
+    for c in run["result"]["clusters"]:
+        try:
+            events = rl.history(rl.cluster_key(_video(run["result"]), c["cluster_id"]))
+        except Exception as e:
+            log.warning("보고서 이력 조회 실패: %s", e)
+            events = None
+        actions = [dict(e, item_name=ITEM_NAMES.get(e["item"], e["item"]), before_text=_value_text(e["item"], e["before"]),
+                        after_text=_value_text(e["item"], e["after"])) for e in events or [] if e["kind"] == "조치"]
+        out.append({"cluster": c, "ai": c["level_before_override"], "calc": c["level"],
+                    "final": run["stages"].get(c["cluster_id"]) or c["level"], "actions": actions, "db": events is not None})
+    return out
+
+
 @bp.get("/report")
 def report():
     """인쇄용 보고서. ?stage=N 은 지휘관이 화면에서 '단계 조정'한 값 (없으면 AI 권고 단계)."""
@@ -326,4 +360,4 @@ def report():
     if stage not in C.LEVELS:                                           # 1~4 가 아니면 무시
         stage = None
     return render_template("dashboard/report.html", r=run["result"], stage=stage, levels=C.LEVELS,
-                           generated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                           records=_cluster_records(run), generated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
