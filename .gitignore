@@ -9,3 +9,8 @@ venv/
 # 분석 때 생기는 crop (static/mock_frames 원본은 저장소에 둠)
 static/unknown_crops/
 static/track_crops/
+
+# 개인 정리 문서 (git 에 올리지 않음)
+정리/
+# make_sample.py 가 만드는 박스 확인용 그림 (앱·테스트에서 안 씀)
+static/mock_frames/*_annotated.jpg
