@@ -1,6 +1,6 @@
 # config.py — 숫자 설정값 모음
 
-파일: `dashboard/threat/config.py` (전체 91줄)
+파일: `dashboard/threat/config.py` (전체 90줄)
 
 대시보드 위협도 계산에 쓰는 **숫자는 전부 이 파일에** 있습니다. 계산 코드(`core.py`, `track.py`, `judge.py`, `unknown_registry.py`)는
 여기 값을 `C.이름` 으로 가져다 씁니다. 값을 바꾸면 계산 결과가 바로 바뀝니다 (서버 재시작 필요).
@@ -79,121 +79,125 @@
 ```
 → `TACTIC_WEIGHTS[전술번호] = (화력, 기동력, 방호력)` 가중치. 값 3개를 괄호로 묶은 것을 **튜플**(tuple, 바꿀 수 없는 묶음)이라 합니다. 예: 1번 기동·직접전투는 화력을 가장 중시(0.45), 10번 지휘통제는 기동(0.43)·방호(0.37)를 중시. 11번 전투근무지원은 화력 0이라 전차에는 쓰지 않아 넣지 않았습니다.
 
-### 위협도 단계·제대·대응단계 (config.py:39~50)
+### 위협도 단계·제대·대응단계 (config.py:39~49)
 
 ```python
 39  # ───────────────────────── 전차 1대의 위협도 단계 (랭킹 표 '위협도' 칸) ─────────────────────────
 40  # (하한 점수, 단계 이름). 위에서부터 검사해 처음 만족하는 단계. 사전 국가 페이지 분포와 같은 구간
 41  THREAT_GRADES = [(100, "매우 높음"), (70, "높음"), (40, "보통"), (0, "낮음")]
 ```
-→ `THREAT_GRADES`: 전차 1대 점수 → 단계 이름. 100 이상 '매우 높음', 70 이상 '높음', 40 이상 '보통', 그 밖 '낮음'. 위에서부터 처음 맞는 칸을 고릅니다 (`core.py:110`).
+→ `THREAT_GRADES`: 전차 1대 점수 → 단계 이름. 100 이상 '매우 높음', 70 이상 '높음', 40 이상 '보통', 그 밖 '낮음'. 위에서부터 처음 맞는 칸을 고릅니다 (`core.py:102`).
 
 ```python
-43  # ───────────────────────── 제대 (군집 안 전차+기갑차 대수) ─────────────────────────
-44  ECHELONS = [(16, 3, "대대"), (5, 2, "중대"), (1, 1, "소대")]  # (최소 대수, 제대가중치, 제대명). 큰 것부터 검사
-45  ECHELON_CATEGORIES = ("전차", "기갑차")                        # 대수에 포함하는 분류 (포병·인원·미확인 제외)
+43  # ───────────────────────── 군집 대응단계 (판정 엔진 = response_level.assess) ─────────────────────────
+44  # 제대 표(소대·중대·대대)는 response_level.ECHELONS 한 곳에 있다
+45  ECHELON_COUNT_UNKNOWN = True  # 제대 대수 N 에 Unknown 도 넣음 (공식 규칙 ④). False = 예전 대시보드 방식(전차+기갑차만). 팀 결정 필요
 ```
-→ `ECHELONS`: 군집 안 전차+기갑차 대수 → 제대. 16대 이상 대대(가중치 3), 5대 이상 중대(2), 1대 이상 소대(1). `ECHELON_CATEGORIES` 에 없는 포병·인원·미확인은 대수에 넣지 않습니다 (DB 엔진 `response_level.py` 와 다른 점 — 12번 문서 참고).
+→ 엔진 통합 후 군집 판정은 `response_level.assess` 하나. 제대 표(소대·중대·대대)는 `response_level.ECHELONS` 한 곳에 있습니다. `ECHELON_COUNT_UNKNOWN = True`: 제대 대수 N 에 미확인도 넣는 공식 규칙 ④. False 면 예전 대시보드 방식(전차+기갑차만). **팀 결정 필요**.
 
 ```python
-47  # ───────────────────────── 군집 대응단계 ─────────────────────────
-48  LEVEL_THRESHOLDS = [(225, 1), (150, 2), (75, 3)]  # 군집점수 ≥ 경계값 → 단계. 모두 미만이면 4단계
-49  FLOOR_TANK_THREAT = 75                            # 위협도가 이 이상인 전차가 군집에 있으면 4단계 불가
-50  LEVELS = {1: "즉시 보고", 2: "우선 감시", 3: "지속 감시", 4: "관심"}  # 단계 이름 (1이 가장 심각)
+46  # 아래 두 값은 DB threat_coef(lv1·lv2·lv3·floor_t)가 우선, DB 가 없을 때만 쓰는 기본값 (response_level.load_coef)
+47  LEVEL_THRESHOLDS = [(225, 1), (150, 2), (75, 3)]  # 군집점수 ≥ 경계값 → 단계. 모두 미만이면 4단계
+48  FLOOR_TANK_THREAT = 75                            # 위협도가 이 이상인 (미확인 아닌) 전차가 군집에 있으면 최소 3단계
 ```
-→ `LEVEL_THRESHOLDS`: 군집점수 S ≥ 225 → 1단계, ≥ 150 → 2단계, ≥ 75 → 3단계, 그 밖 4단계. `FLOOR_TANK_THREAT = 75`: 위협도 75 이상 전차가 있으면 4단계로 내려가지 않음(하한). `LEVELS`: 단계 이름.
-
-### 위치 추정 (현재 mock) (config.py:52~54)
+→ `LEVEL_THRESHOLDS`: 군집점수 S ≥ 225 → 1단계, ≥ 150 → 2단계, ≥ 75 → 3단계, 그 밖 4단계. `FLOOR_TANK_THREAT = 75`: 위협도 75 이상인 (미확인 아닌) 전차가 있으면 최소 3단계. **DB `threat_coef`(lv1·lv2·lv3·floor_t)가 우선**이고 이 값은 DB 가 없을 때의 기본값입니다 (`response_level.load_coef`).
 
 ```python
-52  # ───────────────────────── 위치 추정 (mock) ─────────────────────────
-53  CAMERA_FOV_DEG = 60  # 카메라 가로 시야각(도). bbox 가로 위치 → 방위 계산에 사용
-54  DISTANCE_K = 2000    # 거리(m) ≈ DISTANCE_K × 10 / bbox 높이(%). 높이 10% 이면 2km
+49  LEVELS = {1: "즉시 보고", 2: "우선 감시", 3: "지속 감시", 4: "관심"}  # 단계 이름 (1이 가장 심각)
+```
+→ `LEVELS`: 단계 이름 (1 즉시 보고 ~ 4 관심).
+
+### 위치 추정 (현재 mock) (config.py:51~53)
+
+```python
+51  # ───────────────────────── 위치 추정 (mock) ─────────────────────────
+52  CAMERA_FOV_DEG = 60  # 카메라 가로 시야각(도). bbox 가로 위치 → 방위 계산에 사용
+53  DISTANCE_K = 2000    # 거리(m) ≈ DISTANCE_K × 10 / bbox 높이(%). 높이 10% 이면 2km
 ```
 → `CAMERA_FOV_DEG = 60`(카메라 가로 시야각), `DISTANCE_K = 2000`(거리 계수). 박스 위치·크기로 방위·거리를 **어림**합니다. 실제 거리 측정 장비나 카메라 보정값이 없어서 쓰는 **임시 방식(mock)**입니다 (`pipeline.py:54~64`).
 
-### v2: 부품 연결·트랙 집계 (track.py) (config.py:56~68)
+### v2: 부품 연결·트랙 집계 (track.py) (config.py:55~67)
 
 ```python
-56  # ═════════════════════════ 탐지 모델 연동 (v2 입력, contract.md) ═════════════════════════
-57  # ───────────── 부품 → 전차 연결, 트랙 집계 (track.py) ─────────────
-58  PART_CONF_MIN = 0.5          # 이 신뢰도 이상인 부품만 센다. TODO: 근거 (YOLO 검증셋 PR 곡선으로 정하기)
-59  PART_IOA_MIN = 0.5           # 부품 면적 중 전차 bbox 와 겹치는 비율이 이 이상이면 그 전차 부품. TODO: 근거
+55  # ═════════════════════════ 탐지 모델 연동 (v2 입력, contract.md) ═════════════════════════
+56  # ───────────── 부품 → 전차 연결, 트랙 집계 (track.py) ─────────────
+57  PART_CONF_MIN = 0.5          # 이 신뢰도 이상인 부품만 센다. TODO: 근거 (YOLO 검증셋 PR 곡선으로 정하기)
+58  PART_IOA_MIN = 0.5           # 부품 면적 중 전차 bbox 와 겹치는 비율이 이 이상이면 그 전차 부품. TODO: 근거
 ```
 → `PART_CONF_MIN = 0.5`: 신뢰도 0.5 이상인 부품(안테나·cope cage)만 셉니다. `PART_IOA_MIN = 0.5`: 부품 상자의 절반 이상이 전차 상자 안에 있어야 그 전차 부품으로 붙입니다. 둘 다 **TODO(근거 미정)**.
 
 ```python
-60  COMMANDER_RATIO = 0.3        # 안테나가 보인 프레임 비율이 이 이상이고
-61  COMMANDER_MIN_FRAMES = 3     # 그런 프레임이 이 장수 이상이면 지휘전차 (1~2프레임 오탐 방지). TODO: 근거
-62  COPE_CAGE_RATIO = 0.3        # cope cage 도 같은 규칙. TODO: 근거
-63  COPE_CAGE_MIN_FRAMES = 3
+59  COMMANDER_RATIO = 0.3        # 안테나가 보인 프레임 비율이 이 이상이고
+60  COMMANDER_MIN_FRAMES = 3     # 그런 프레임이 이 장수 이상이면 지휘전차 (1~2프레임 오탐 방지). TODO: 근거
+61  COPE_CAGE_RATIO = 0.3        # cope cage 도 같은 규칙. TODO: 근거
+62  COPE_CAGE_MIN_FRAMES = 3
 ```
 → 지휘전차 규칙: 안테나가 보인 프레임이 **전체의 30% 이상**이고 **3장 이상**이면 지휘전차. 1~2장짜리 오탐(잘못 탐지)을 걸러 냅니다. cope cage 도 같은 규칙. **TODO**.
 
 ```python
-64  EMB_TOP_N = 5                # 트랙 임베딩 = 품질 상위 N 프레임 임베딩의 평균 (재정규화)
+63  EMB_TOP_N = 5                # 트랙 임베딩 = 품질 상위 N 프레임 임베딩의 평균 (재정규화)
 ```
 → `EMB_TOP_N = 5`: 트랙 임베딩(사진을 숫자 벡터로 바꾼 것)은 품질이 좋은 프레임 5장의 평균으로 만듭니다.
 
 ```python
-65  EDGE_MARGIN_PX = 8           # 화면 경계에서 이 px 안쪽까지 붙은 bbox 는 잘린 것으로 보고 crop 후보에서 뺀다
-66  CROP_MIN_PX = 48             # bbox 짧은 변이 이보다 작으면 crop 후보에서 뺀다 (분석관이 알아볼 수 없음)
-67  CROP_KEEP = 3                # 트랙당 저장하는 crop 장수
-68  CROP_PAD = 0.10              # crop 할 때 bbox 각 변에 더하는 여백 (bbox 폭·높이의 10%)
+64  EDGE_MARGIN_PX = 8           # 화면 경계에서 이 px 안쪽까지 붙은 bbox 는 잘린 것으로 보고 crop 후보에서 뺀다
+65  CROP_MIN_PX = 48             # bbox 짧은 변이 이보다 작으면 crop 후보에서 뺀다 (분석관이 알아볼 수 없음)
+66  CROP_KEEP = 3                # 트랙당 저장하는 crop 장수
+67  CROP_PAD = 0.10              # crop 할 때 bbox 각 변에 더하는 여백 (bbox 폭·높이의 10%)
 ```
 → crop(표적 부분만 잘라낸 사진) 규칙: 화면 가장자리 8px 안에 닿은 상자(잘린 표적)와 짧은 변이 48px 미만인 상자는 뺍니다. 트랙당 3장 저장, 상자 둘레에 10% 여백을 더해 자릅니다.
 
-### v2: Known / Known_Variant / Unknown 판정 (judge.py) (config.py:70~76)
+### v2: Known / Known_Variant / Unknown 판정 (judge.py) (config.py:69~75)
 
 ```python
-70  # ───────────── Known / Known_Variant / Unknown 판정 (judge.py) ─────────────
-71  KNOWN_SCORE = 0.6            # top-1 점수가 이 이상이고
-72  KNOWN_MARGIN = 0.2           # top-1 과 top-2 차이가 이 이상이면 Known. TODO: 근거 (DINO 검증셋 보정)
+69  # ───────────── Known / Known_Variant / Unknown 판정 (judge.py) ─────────────
+70  KNOWN_SCORE = 0.6            # top-1 점수가 이 이상이고
+71  KNOWN_MARGIN = 0.2           # top-1 과 top-2 차이가 이 이상이면 Known. TODO: 근거 (DINO 검증셋 보정)
 ```
 → **Known**(기종 확정): 분류 1위 점수 ≥ 0.6 그리고 1위−2위 ≥ 0.2. **TODO**: DINO 검증 데이터로 다시 정해야 합니다.
 
 ```python
-73  FAMILY_SCORE = 0.6           # 같은 계열 top_k 점수 합이 이 이상이면 Known_Variant (계열만 확정). TODO: 근거
-74  FAMILY_MIN_N = 3             # 계열 표본이 이보다 적으면 계열 상위25% 대신 유형(type_group) 값을 쓴다
+72  FAMILY_SCORE = 0.6           # 같은 계열 top_k 점수 합이 이 이상이면 Known_Variant (계열만 확정). TODO: 근거
+73  FAMILY_MIN_N = 3             # 계열 표본이 이보다 적으면 계열 상위25% 대신 유형(type_group) 값을 쓴다
 ```
 → **Known_Variant**(계열만 확정): 같은 계열 점수 합 ≥ 0.6. 계열 표본(그 계열 기종 수)이 3개 미만이면 계열 대신 유형 값을 씁니다.
 
 ```python
-75  DEFAULT_TYPE_GROUP = "주력전차"  # 계열도 유형도 모를 때 쓰는 유형
-76  THREAT_PERCENTILE = 75       # 미확인·변형에 주는 위협도 = 계열(또는 유형) 안 상위 25% 값
+74  DEFAULT_TYPE_GROUP = "주력전차"  # 계열도 유형도 모를 때 쓰는 유형
+75  THREAT_PERCENTILE = 75       # 미확인·변형에 주는 위협도 = 계열(또는 유형) 안 상위 25% 값
 ```
 → 계열·유형을 모르면 '주력전차'로 봅니다. 미확인·변형에는 그 집단의 **상위 25% 값(p75, 100개 중 75번째)**을 줍니다 — 보수적으로(위험하게) 잡기 위해서입니다.
 
-### v2: cope cage 방호 보너스 (config.py:78~80)
+### v2: cope cage 방호 보너스 (config.py:77~79)
 
 ```python
-78  # ───────────── cope cage 방호 보너스 ─────────────
-79  # 상부 공격(드론·탑어택 ATGM)에 대한 부분 방호. TODO: 정성 가중치 담당 설문으로 확정 예정
-80  COPE_CAGE_PROTECTION_MULT = 1.10
+77  # ───────────── cope cage 방호 보너스 ─────────────
+78  # 상부 공격(드론·탑어택 ATGM)에 대한 부분 방호. TODO: 정성 가중치 담당 설문으로 확정 예정
+79  COPE_CAGE_PROTECTION_MULT = 1.10
 ```
 → `COPE_CAGE_PROTECTION_MULT = 1.10`: cope cage(포탑 위 철망 지붕, 드론·위에서 떨어지는 공격 대비)가 있으면 방호력 ×1.10. **TODO: 정성 가중치 담당 설문으로 확정 예정** — 지금은 임시값입니다.
 
-### v2: Unknown 레지스트리 (unknown_registry.py) (config.py:82~91)
+### v2: Unknown 레지스트리 (unknown_registry.py) (config.py:81~90)
 
 ```python
-82  # ───────────── Unknown 레지스트리 (unknown_registry.py) ─────────────
-83  GROUP_SIM_MIN = 0.85         # 그룹 centroid 와 코사인 유사도가 이 이상이면 같은 그룹. TODO: 실제 임베딩으로 보정
-84  GROUP_SIM_REVIEW = 0.75      # 이 이상 GROUP_SIM_MIN 미만이면 새 그룹 + 병합 후보로 기록 (분석관 검토)
+81  # ───────────── Unknown 레지스트리 (unknown_registry.py) ─────────────
+82  GROUP_SIM_MIN = 0.85         # 그룹 centroid 와 코사인 유사도가 이 이상이면 같은 그룹. TODO: 실제 임베딩으로 보정
+83  GROUP_SIM_REVIEW = 0.75      # 이 이상 GROUP_SIM_MIN 미만이면 새 그룹 + 병합 후보로 기록 (분석관 검토)
 ```
 → 코사인 유사도(두 벡터 방향이 얼마나 비슷한지, 1에 가까울수록 비슷함) ≥ 0.85 면 같은 그룹, 0.75~0.85 면 새 그룹을 만들되 '병합 후보'로 적어 둡니다. **TODO: 실제 임베딩으로 보정**.
 
 ```python
-85  PRIORITY_FREQ_K = 0.5        # 순위 점수에서 트랙 수 log 항의 비중. TODO: 근거
-86  PRIORITY_VIDEO_K = 0.5       # 영상 1개 더 나올 때마다 늘어나는 비중. TODO: 근거
-87  RECENT_DAYS = 7              # 최근 이 일수 안에 나왔으면
-88  RECENT_BOOST = 1.2           # 순위 점수 × 이 값. TODO: 근거
+84  PRIORITY_FREQ_K = 0.5        # 순위 점수에서 트랙 수 log 항의 비중. TODO: 근거
+85  PRIORITY_VIDEO_K = 0.5       # 영상 1개 더 나올 때마다 늘어나는 비중. TODO: 근거
+86  RECENT_DAYS = 7              # 최근 이 일수 안에 나왔으면
+87  RECENT_BOOST = 1.2           # 순위 점수 × 이 값. TODO: 근거
 ```
 → 순위 점수 계수: 트랙 수 log 항 0.5, 영상 1개당 0.5, 최근 7일 안이면 ×1.2. **TODO**.
 
 ```python
-89  UNKNOWN_RANK_MIN_THREAT = 40 # 위협도가 이 미만인 그룹은 저장만 하고 순위 목록에서 뺀다 (THREAT_GRADES '보통' 하한)
-90  UNKNOWN_RANK_TOP = 20        # 순위 목록 기본 개수
-91  GROUP_CROP_MAX = 12          # 그룹당 유지하는 crop 장수 (품질 상위)
+88  UNKNOWN_RANK_MIN_THREAT = 40 # 위협도가 이 미만인 그룹은 저장만 하고 순위 목록에서 뺀다 (THREAT_GRADES '보통' 하한)
+89  UNKNOWN_RANK_TOP = 20        # 순위 목록 기본 개수
+90  GROUP_CROP_MAX = 12          # 그룹당 유지하는 crop 장수 (품질 상위)
 ```
 → 위협도 40 미만 그룹은 저장만 하고 순위에서 뺍니다. 순위는 기본 20개, 그룹당 crop 은 품질 좋은 12장만 남깁니다.
 

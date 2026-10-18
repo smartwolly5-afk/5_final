@@ -15,15 +15,16 @@ DOCS = REPO / "정리"
 
 FILES = [  # (파일, 한 줄 설명)
     ("dashboard/threat/pipeline.py", "탐지 결과 → 화면 응답 JSON 조립 (핵심 흐름)"),
-    ("dashboard/threat/core.py", "제대·전술·정량 점수·위협도·대응단계 순수 계산"),
+    ("dashboard/threat/core.py", "전술 추정·정량 점수·전차 1대 위협도 순수 계산"),
+    ("dashboard/threat/adapter.py", "대시보드 ↔ 판정 엔진(response_level.assess) 변환"),
     ("dashboard/threat/track.py", "v2 프레임 → 트랙 집계"),
     ("dashboard/threat/judge.py", "Known/Known_Variant/Unknown 판정과 위협도"),
     ("dashboard/threat/dictdb.py", "사전 위협도 DB 조회 (DB 없으면 demo_seed.json)"),
     ("dashboard/__init__.py", "대시보드 화면·API 주소 (Flask Blueprint)"),
     ("dashboard/media.py", "원본 프레임에서 crop 잘라 저장"),
     ("dashboard/unknown_registry.py", "미확인 그룹 매칭·집계·순위 (DB)"),
-    ("response_level.py", "DB 기반 대응수준 엔진 (/api/threat)"),
-    ("threat_api.py", "/api/threat 주소 (response_level 사용)"),
+    ("response_level.py", "군집 대응단계 판정 엔진(하나뿐)과 판정·조치 기록"),
+    ("threat_api.py", "외부 연동용 /api/threat 주소 (같은 엔진·같은 기록)"),
     ("threat_calc.py", "사전 제원 → F·M·P·T_1~T_10 계산 (pandas)"),
     ("sync_threat_db.py", "사전 → 위협도 테이블 전체 재계산 스크립트"),
     ("threat_db.py", "MySQL/SQLite 공통 DB 접근"),
@@ -47,7 +48,7 @@ DESC = {  # docstring 이 없는 함수의 '하는 일'
     "make_seed": "사전 DB 에서 샘플 계열만 골라 demo_seed.json 저장", "_video": "입력의 영상 이름",
     "_crop_urls": "DB 의 crop 경로 → 브라우저 주소", "_now": "지금 시각 문자열", "_unit": "벡터 길이를 1로 (L2 정규화)",
     "_group": "그룹 1행 읽기", "_new_group_id": "다음 그룹 번호 UNK-G0001 형식", "_cover": "그룹 대표 crop 1장 경로",
-    "echelon": "대수 → (제대가중치, 제대명)", "level_of": "군집점수 S → 단계 (DB 경계값)", "_tactic": "전술 번호 1~10 검사",
+    "echelon": "대수 → (제대가중치, 제대명)", "_level": "결과에서 그 군집의 단계 꺼내기", "_now@response_level.py": "지금 시각 문자열", "level_of": "군집점수 S → 단계 (DB 경계값)", "_tactic": "전술 번호 1~10 검사",
     "load_lookup": "DB 에서 기종 T·유형 p75·경계값 읽기", "assess_and_save": "판정 후 cluster_assessment 에 저장",
     "latest_cluster": "그 군집의 최근 입력·단계", "_actor": "요청한 사람 이름 (X-User 헤더 또는 actor)",
     "_missing": "LookupError → 404 응답", "tank": "기종 1개 위협도 행 (GET /api/threat/tank/<id>)",
@@ -109,6 +110,13 @@ OUT = {  # 주요 함수의 출력 (손으로 정리)
     "family_type_group": "유형 이름 또는 None", "compute": "입력값·F·M·P·T_1~T_10 DataFrame",
     "assess@response_level.py": "판정 결과 dict (level, S, T_cluster, E, N, vehicles …)",
     "sync": "{seeded, tanks, computable, summary_rows}", "_bad@dashboard/__init__.py": "(JSON 오류 응답, 상태 코드)",
+    "to_assess_input": "assess 입력 dict (vehicles[].T 포함)", "from_assess_output": "화면 Cluster dict",
+    "assess_cluster": "Cluster dict (+ _assess_input·_assess_result)", "floor_text": "하한 규칙 문장",
+    "cluster_response_level@dashboard/threat/adapter.py": "Cluster dict", "load_coef": "{lv1, lv2, lv3, floor_t}",
+    "cluster_key": "'영상:군집' (64자 이하)", "save_assessment": "새 행 번호", "record_override": "—",
+    "history": "[{kind: 판정|조치, at, …}] 시간순", "assess_and_save": "판정 결과", "apply_override": "재판정 결과",
+    "_level": "단계 숫자 또는 None", "_log_action": "기록 성공 True/False", "_cluster_records": "보고서용 군집별 기록 목록",
+    "_value_text": "보고서 문구", "ensure_schema": "—",
 }
 
 

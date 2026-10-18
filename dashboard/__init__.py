@@ -39,8 +39,8 @@ log = logging.getLogger(__name__)
 # 서버 메모리 상태 (요청 사이에 유지). 영상마다 분석 1건(run)을 들고 있고, 화면은 current 영상을 본다.
 # 기록의 기준은 DB 다: 판정마다 cluster_assessment, 지휘관 조치마다 commander_override 에 남는다 (response_level).
 #   STATE 는 화면 속도를 위한 캐시일 뿐이라 서버를 다시 켜면 사라진다.
-# ponytail: 프로세스 메모리 — 서버 재시작 시 사라지고 사용자 간 공유됨. 다중 사용자면 DB(cluster_assessment) 저장으로.
-#   (Unknown 레지스트리는 DB 라 재시작해도 남는다)
+# ponytail: 화면 상태(지정 전술·핵심표적·단계 조정)는 프로세스 메모리 하나라 모든 사용자가 공유한다.
+#   사용자별 화면이 필요하면 run 을 사용자 키로 나누거나 DB 에서 복원 (기록·레지스트리는 이미 DB 라 재시작해도 남음)
 STATE = {"runs": {},       # 영상 이름 → {"payload", "prev", "result", "overrides": {군집: 전술}, "commanders": {표적: bool},
                            #              "core": {핵심표적 tracking_id}, "stages": {군집: 지휘관이 화면에서 조정한 단계}}
          "current": None}  # 화면에 보이는 영상 이름

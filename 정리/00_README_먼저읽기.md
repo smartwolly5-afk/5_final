@@ -64,7 +64,7 @@ python -m pytest tests dashboard/tests -q
 
 ## 위치 표기 규칙
 
-- 함수·설정값 위치는 `파일:줄` 로 적습니다. 예: `judge.py:81` = `dashboard/threat/judge.py` 81번째 줄, `pipeline.py:54~64` = 54~64줄.
+- 함수·설정값 위치는 `파일:줄` 로 적습니다. 예: `judge.py:81` = `dashboard/threat/judge.py` 81번째 줄, `pipeline.py:61~71` = 54~64줄.
 - 같은 이름 파일이 둘이라 이렇게 구분합니다: **`config.py` = `dashboard/threat/config.py`(대시보드 설정값)**, 저장소 루트의 DB 설정 파일은 **`./config.py`**.
   **`__init__.py` = `dashboard/__init__.py`**.
 - 줄 번호는 커밋 `443c077` 기준입니다. 코드를 고치면 바뀔 수 있으니 `10_코드_라인별_설명/_생성기/check_refs.py` 로 확인하세요.

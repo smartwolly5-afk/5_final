@@ -235,7 +235,6 @@ def latest_cluster(cluster_id):
 def apply_override(cluster_id, item, value, actor="unknown", remove=False, lookup=None):
     """item='tactic': value=전술 번호(None 이면 해제). item='core_target': value=track_id, remove=True 면 해제.
     그 군집만 재판정하고 commander_override 에 변경 전→후를 남긴다."""
-    import threat_db as tdb
     cluster, level_before = latest_cluster(cluster_id)
     if cluster is None:
         raise LookupError(cluster_id)
