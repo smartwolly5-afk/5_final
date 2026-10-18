@@ -5,7 +5,7 @@
     <div class="hero-inner">
         <span class="hero-pill">{{ icon('book', 13) }} 국가별 전차 제원 사전</span>
         <h1 class="hero-title">전차 사전</h1>
-        <p class="hero-desc">국가를 선택하면 계열 목록을, 계열을 선택하면 변형별 상세 제원을 단계적으로 확인할 수 있습니다.</p>
+        <p class="hero-desc">국가를 선택하면 그 나라의 전차 목록을, 전차를 선택하면 상세 제원을 확인할 수 있습니다.</p>
         <form class="hero-search" method="get" action="{{ url_for('dictionary.home') }}">
             <label class="search-box">
                 {{ icon('search', 15) }}
@@ -36,7 +36,10 @@
             {% for t in results %}
             <tr data-href="{{ url_for('dictionary.tank', tank_id=t.tank_id) }}">
                 <td>{{ m.silhouette('sm') }}</td>
-                <td><a class="row-link" href="{{ url_for('dictionary.tank', tank_id=t.tank_id) }}">{{ display('canonical_name', t.canonical_name) }}</a></td>
+                {% set l = lin[t.tank_id] %}
+                <td><a class="row-link" href="{{ url_for('dictionary.tank', tank_id=t.tank_id) }}">{{ display('canonical_name', t.canonical_name) }}</a>
+                    {% if l.variant %}<span class="var-badge">개량형</span>
+                    <div class="card-sub">원형: {{ l.original.canonical_name if l.original else l.family ~ ' 계열' }}</div>{% endif %}</td>
                 <td>{{ display('aliases', t.aliases) }}</td>
                 <td>{{ family_of(t) }}</td>
                 <td>{{ display('variant_name', t.variant_name) }}</td>
@@ -60,22 +63,13 @@
     <div class="card-grid">
         {% for c in countries %}
         <a class="country-card" href="{{ url_for('dictionary.home', country=c.name) }}">
-            <div class="card-media">
-                {{ m.silhouette() }}
+            <div class="card-head">
                 <span class="code-chip">{{ c.code }}</span>
+                <span class="card-title">{{ c.name }}</span>
+                <span class="card-count">{{ c.tanks }}종</span>
             </div>
-            <div class="card-body">
-                <div class="card-title-row">
-                    <span class="card-title">{{ c.name }}</span>
-                    <span class="card-arrow">{{ icon('arrow-right', 15) }}</span>
-                </div>
-                {% if c.en or c.region %}<div class="card-sub">{{ c.en }}{% if c.en and c.region %} · {% endif %}{{ c.region }}</div>{% endif %}
-                <div class="card-stats">
-                    <span>{{ icon('layers', 13) }} 계열 {{ c.families }}개</span>
-                    <span>{{ icon('grid', 13) }} 전차 {{ c.tanks }}종</span>
-                </div>
-                <div class="rep-row">{{ icon('star', 13) }} 대표 전차 <b>{{ (c.rep.canonical_name or variant_label(c.rep)) if c.rep else NA }}</b></div>
-            </div>
+            {% if c.en or c.region %}<div class="card-sub">{{ c.en }}{% if c.en and c.region %} · {% endif %}{{ c.region }}</div>{% endif %}
+            <div class="rep-row">{{ icon('star', 13) }} 대표 전차 <b>{{ (c.rep.canonical_name or variant_label(c.rep)) if c.rep else NA }}</b></div>
         </a>
         {% endfor %}
     </div>

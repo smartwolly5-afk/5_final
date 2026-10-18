@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">                                                     <!-- 한글 인코딩 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">      <!-- 모바일 폭 맞춤 -->
+    <title>TANK</title>
+    <!-- 글꼴 (Pretendard), 지도 라이브러리 스타일 (Leaflet) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <!-- 공통 스타일(색상 변수·상단 바) → 대시보드 전용 스타일 순서 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('dashboard.static', filename='dashboard.css') }}">
+</head>
+<body>
+<div class="layout" id="layout">
+    <!-- 화면 맨 위 경보 배너: 1단계(즉시 보고)이거나 API 오류일 때 JS 가 표시 -->
+    <div class="alert-banner" id="alert-banner" hidden>
+        <span id="alert-banner-text"></span>
+        <button class="icon-btn" id="alert-banner-close" type="button" aria-label="배너 닫기">&times;</button>
+    </div>
+
+    {# 공통 상단 바 (templates/_nav.html). active 로 '위협도' 메뉴 강조 #}
+    {% with active = 'threat' %}{% include '_nav.html' %}{% endwith %}
+
+    <div class="body-grid">
+        <!-- ===== 왼쪽: 영상 + 위협도 랭킹 ===== -->
+        <div class="main-left">
+            <section class="section section-video">
+                <div class="section-head">
+                    <h2 class="section-title">실시간 감시</h2>
+                    <!-- 탐지 카운터: 숫자는 API counts 값으로 JS 가 채움 -->
+                    <div class="count-bar" id="count-bar">
+                        <span class="cb-item">{{ icon('crosshair', 14) }}<span class="cb-label">전체</span><b id="cb-total">0</b></span>
+                        <span class="cb-item">{{ icon('crosshair', 14) }}<span class="cb-label">전차</span><b id="cb-tank">0</b></span>
+                        <span class="cb-item">{{ icon('truck', 14) }}<span class="cb-label">기갑차</span><b id="cb-apc">0</b></span>
+                        <span class="cb-item">{{ icon('box', 14) }}<span class="cb-label">포병</span><b id="cb-arty">0</b></span>
+                        <span class="cb-item cb-new">{{ icon('triangle-alert', 14) }}<span class="cb-label">신규</span><b id="cb-new">0</b></span>
+                    </div>
+                    <!-- 영상 파일 이름 + 분석 시작 (POST /api/analyze) -->
+                    <div class="upload">
+                        <div class="file-chip"><span id="src-video"></span> <span class="x">&times;</span></div>
+                        <button class="btn btn-primary" id="analyze-btn" type="button">분석 시작</button>
+                    </div>
+                </div>
+
+                <div class="video-card">
+                    <div class="video" id="video">                      <!-- 바운딩 박스는 JS 가 이 안에 그림 -->
+                        <div class="video-tools">
+                            <button type="button">&#10148;</button>
+                            <button type="button">&#9906;</button>
+                            <button type="button">&#9974;</button>
+                        </div>
+                        <div class="video-meta" id="video-meta"></div>  <!-- 촬영일 (출처) -->
+                        <div class="bbox-legend">
+                            <div><span class="leg-swatch solid"></span>박스 색 = 소속 군집 대응단계</div>
+                            <div><span class="leg-swatch dashed purple"></span>미확인 표적</div>
+                        </div>
+                    </div>
+                    <div class="player">                                <!-- 재생바: 실제 영상 연결 전이라 모양만 -->
+                        <button class="play" type="button">&#9654;</button>
+                        <span class="time">--:-- / --:--</span>
+                        <div class="progress"><div class="progress-fill"></div></div>
+                        <button class="fullscreen" type="button">&#9974;</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section section-rank">
+                <div class="section-head">
+                    <h2 class="section-title">위협도 랭킹 <span id="target-count"></span></h2>
+                </div>
+                <div class="table-wrap">
+                    <table class="rank-table">
+                        <colgroup>                                       <!-- 열 폭 (합 100%) -->
+                            <col style="width:6%"><col style="width:12%"><col style="width:14%">
+                            <col style="width:18%"><col style="width:40%"><col style="width:10%">
+                        </colgroup>
+                        <thead>
+                        <tr>
+                            <th>순위</th>
+                            <th>Tracking ID</th>
+                            <th>기종(계열)</th>
+                            <th title="전차 1대 위협도 = 화력·기동력·방호력 점수(M1A1 = 100)를 전술 가중치로 가중평균 · 단계: 100↑ 매우 높음, 70↑ 높음, 40↑ 보통, 40 미만 낮음">위협도</th>
+                            <th class="col-left">근거 태그</th>
+                            <th>신뢰도</th>
+                        </tr>
+                        </thead>
+                        <tbody id="rank-body"></tbody>                   <!-- 행은 JS renderTable() 이 채움 -->
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===== 오른쪽: 상황 패널 / 선택 표적 상세 / 미니맵 ===== -->
+        <aside class="detail-right" id="detail-right">
+            <!-- (A) 상황 대응수준 = 군집 단위 대응단계 -->
+            <div class="panel" id="pa-panel">
+                <div class="pa-head">
+                    <span class="badge-lg" id="pa-stage-badge"></span>    <!-- 가장 심각한 군집의 단계 (또는 지휘관 조정값) -->
+                    <button class="icon-btn alert-info" type="button"
+                            title="대응단계는 군집 단위. 군집점수 = 군집 내 최고 위협도 × 제대가중치(소대1·중대2·대대3) → 225/150/75 경계로 1~4단계. 미확인 표적이나 위협도 75 이상 전차가 있으면 4단계 불가">{{ icon('info', 16) }}</button>
+                </div>
+                <p class="alert-change" id="pa-change"></p>               <!-- 직전 분석 대비 단계 변화 -->
+                <p class="alert-override" id="pa-override" hidden></p>    <!-- 지휘관이 단계 조정했을 때 -->
+                <ul class="cluster-list" id="pa-clusters"></ul>           <!-- 군집별 단계·전술·판정 근거 -->
+
+                <div class="alert-buttons">
+                    <button class="btn btn-primary" id="pa-confirm" type="button">확인</button>
+                    <button class="btn btn-outline" id="pa-adjust" type="button">단계 조정</button>
+                    <button class="btn btn-outline" id="pa-tactic" type="button">전술 선택</button>
+                    <button class="btn btn-outline" id="pa-report" type="button">보고서 출력</button>
+                </div>
+                <!-- 단계 조정: 지휘관 판단으로 전체 단계 변경 (계산값은 그대로, 화면·보고서에만 반영) -->
+                <div class="picker" id="stage-pick" hidden>
+                    <button data-stage="1" type="button">1단계</button>
+                    <button data-stage="2" type="button">2단계</button>
+                    <button data-stage="3" type="button">3단계</button>
+                    <button data-stage="4" type="button">4단계</button>
+                </div>
+                <!-- 전술 선택: 군집 하나의 전술을 지정 → 서버가 그 군집 위협도·단계를 다시 계산 -->
+                <div class="picker" id="tactic-pick" hidden>
+                    <select id="tp-cluster" aria-label="군집"></select>   <!-- 군집 목록은 JS 가 채움 -->
+                    <select id="tp-tactic" aria-label="전술">
+                        <option value="">자동 (시스템 추정)</option>
+                        {% for n, name in tactics %}<option value="{{ n }}">{{ n }}. {{ name }}</option>{% endfor %}
+                    </select>
+                    <button id="tp-apply" type="button">적용</button>
+                </div>
+                <p class="alert-disclaimer">권고 사항이며 최종 판단은 지휘관이 합니다</p>
+            </div>
+
+            <!-- (B) 선택 표적 상세: 표·영상·지도에서 표적을 고르면 JS renderPanelB() 가 채움 -->
+            <div class="panel" id="panel-b">
+                <div class="detail-id">
+                    <span class="obj-id" id="pb-title"></span>
+                    <span class="badge" id="pb-status-badge"></span>
+                    <span class="conf" id="pb-conf"></span>
+                </div>
+                <div class="pb-score-row">
+                    <span class="pb-score" id="pb-score"></span>         <!-- 전차 위협도 점수 -->
+                    <span id="pb-grade"></span>                         <!-- 위협도 단계 배지 -->
+                    <span class="badge" id="pb-stage-badge"></span>     <!-- 소속 군집 대응단계 -->
+                </div>
+                <div id="pb-bars"></div>                                <!-- 화력·기동·방호 막대 -->
+                <div class="chip-row" id="pb-reasons"></div>            <!-- 근거 태그 -->
+                <p class="muted" id="pb-info"></p>                      <!-- 추정 거리·방위·군집·전술 -->
+                <a class="btn btn-outline" id="pb-dict-link" href="#">{{ icon('book', 16) }} 사전에서 보기</a>
+            </div>
+
+            <!-- (C) 미니맵: 관측 지점 기준 추정 위치 -->
+            <div class="panel panel-c">
+                <div id="minimap"></div>
+                <span class="map-note">추정 위치</span>
+                <div class="map-fail" id="map-fail" hidden>지도를 불러올 수 없음</div>
+            </div>
+        </aside>
+    </div>
+
+    <footer class="footer">
+        <span><b>TANK</b> | Battlefield Damage Assessment for Smarter Decisions</span>
+    </footer>
+</div>
+
+<!-- 지도 라이브러리 → 대시보드 동작 스크립트 순서 (dashboard.js 가 L 을 씀) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('dashboard.static', filename='dashboard.js') }}"></script>
+</body>
+</html>

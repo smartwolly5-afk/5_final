@@ -23,7 +23,7 @@
 </div>
 <script>
     document.querySelectorAll("tr[data-href]").forEach((tr) =>
-        tr.addEventListener("click", () => (location.href = tr.dataset.href)));
+        tr.addEventListener("click", (e) => e.target.closest("a") || (location.href = tr.dataset.href)));
 </script>
 </body>
 </html>

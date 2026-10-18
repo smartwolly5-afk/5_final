@@ -1,0 +1,78 @@
+{% extends 'dictionary/base.html' %}
+{% block title %}{{ t.canonical_name }}{% endblock %}
+{% block content %}
+{{ m.crumbs([(country, url_for('dictionary.home', country=country)), (t.canonical_name, none)]) }}
+
+<div class="tank-body">
+<div class="tank-specs">
+<table class="spec-table">
+    <caption>
+        <h1 class="cap-title">{{ t.canonical_name }}{% if lin.variant %} <span class="var-badge">개량형</span>{% endif %}</h1>
+        {% if en %}<span class="cap-en">{{ en }}</span>{% endif %}
+    </caption>
+    <colgroup><col class="c-label"><col></colgroup>
+    <tbody>
+        <tr><td colspan="2" class="spec-photo">
+            {% if image %}
+            <img class="tank-photo" src="{{ url_for('static', filename=image) }}" alt="{{ t.canonical_name }}">
+            {% else %}
+            {{ m.silhouette('tank-hero') }}
+            {% endif %}
+        </td></tr>
+    </tbody>
+    {% for sec, rows in sections %}
+    <tbody>
+        <tr class="sec"><th colspan="2">{{ sec }}</th></tr>
+        {% for label, html in rows %}
+        <tr><th>{{ label }}</th><td>{{ html }}</td></tr>
+        {% endfor %}
+    </tbody>
+    {% endfor %}
+</table>
+<p class="spec-count">공개 제원 {{ shown }} / {{ total }} 항목</p>
+</div>
+
+{% if threat %}
+<aside class="panel threat-panel" aria-label="위협도 지수">
+    <h2 class="tp-title">위협도 지수</h2>
+    <p class="tp-sub">기동·직접전투 기준 · 기준전차 M1A1 = 100</p>
+    <div class="tp-score">
+        {% if threat.t1 is not none %}
+        <span class="tp-num">{{ '%.1f'|format(threat.t1) }}</span>
+        <span class="tp-delta">기준전차 대비 {{ '%+.1f'|format(threat.delta) }}</span>
+        {% else %}
+        <span class="tp-na" title="{{ threat.missing }}" tabindex="0">데이터 부족 · 산출 불가</span>
+        {% endif %}
+    </div>
+
+    <div class="tp-bars">
+        {% for b in threat.bars %}
+        <div class="tp-row">
+            <span class="tp-label">{{ b.label }}</span>
+            <div class="tp-track">
+                {% if b.value is not none %}
+                {% set w = (b.value / threat.scale * 100)|round(2) %}
+                <span class="tp-fill tp-fill-{{ b.key }}" style="width: {{ w }}%"></span>
+                <span class="tp-val" style="left: min(calc({{ w }}% + 6px), calc(100% - 38px))">{{ '%.1f'|format(b.value) }}</span>
+                {% else %}
+                <span class="tp-na" title="{{ b.missing }}" tabindex="0">데이터 부족 · 산출 불가</span>
+                {% endif %}
+                {% for p in threat.peers if p[b.key] is not none %}
+                <a class="tp-peer" style="left: {{ (p[b.key] / threat.scale * 100)|round(2) }}%"
+                   href="{{ url_for('dictionary.tank', tank_id=p.tank_id) }}" title="{{ p.name }} {{ b.label }} {{ p[b.key] }}"
+                   aria-label="{{ p.name }} {{ b.label }} {{ p[b.key] }}"></a>
+                {% endfor %}
+                <span class="tp-base" style="left: {{ (100 / threat.scale * 100)|round(2) }}%" aria-hidden="true"></span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="tp-legend">
+        <span><i class="lg-base"></i>기준전차 100</span>
+        {% if threat.peers %}<span><i class="lg-peer"></i>같은 계열 {{ threat.peers|length }}종</span>{% endif %}
+    </div>
+</aside>
+{% endif %}
+</div>
+{% endblock %}

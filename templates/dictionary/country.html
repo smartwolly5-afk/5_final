@@ -3,50 +3,76 @@
 {% block content %}
 {{ m.crumbs([(country.name, none)]) }}
 
-<section class="panel head-panel">
-    {{ m.silhouette('head-ph') }}
-    <div class="head-info">
-        <div class="head-meta"><span class="code-chip static">{{ country.code }}</span>{% if country.region %} {{ country.region }}{% endif %}</div>
-        <h1 class="head-title">{{ country.name }}</h1>
-        {% if country.en %}<p class="head-desc">{{ country.en }}</p>{% endif %}
-        <div class="chips">
-            <span class="chip">{{ icon('layers', 13) }} 계열 {{ families|length }}개</span>
-            <span class="chip">{{ icon('grid', 13) }} 등록 변형 {{ variants }}종</span>
-            {% if rep %}<span class="chip chip-accent">{{ icon('star', 13) }} 대표 {{ rep.canonical_name or variant_label(rep) }}</span>{% endif %}
-        </div>
-    </div>
-</section>
+<div class="country-body">
+<div class="country-head">
+<h1 class="country-title">{{ country.name }}{% if country.en %} <small>{{ country.en }}</small>{% endif %}</h1>
+<p class="country-count">전차 {{ total }}종</p>
 
-<section class="dict-section">
-    <div class="list-bar">
-        <h2 class="list-head">계열 목록 <small>{{ families|length }}종</small></h2>
-        <div class="seg">
-            <a class="{{ 'on' if sort == 'year' }}" href="{{ url_for('dictionary.home', country=country.name, sort='year') }}">도입 연도순</a>
-            <a class="{{ 'on' if sort == 'name' }}" href="{{ url_for('dictionary.home', country=country.name, sort='name') }}">이름순</a>
-        </div>
-    </div>
-    {% if families %}
-    <div class="card-grid family-grid">
-        {% for f in families %}
-        <a class="panel family-card" href="{{ url_for('dictionary.family', family_name=f.name) }}">
-            <div class="family-top">
-                <span class="icon-box">{{ icon('shield') }}</span>
-                {% if f.generations %}<span class="gen-chip">{{ f.generations }}</span>{% endif %}
-            </div>
-            <div class="card-title">{{ f.name }}</div>
-            <div class="card-sub">변형 {{ f.variants }}종 · {{ f.types or NA }}</div>
-            <div class="mini-grid">
-                <div class="mini"><span>도입 연도</span><b>{{ f.years or NA }}</b></div>
-                <div class="mini"><span>대표 주포 구경</span><b>{{ f.caliber }}</b></div>
-                <div class="mini"><span>전투 중량</span><b>{{ display('combat_weight_t', f.rep.combat_weight_t) }}</b></div>
-                <div class="mini"><span>최고 속도</span><b>{{ display('max_road_speed_kmh', f.rep.max_road_speed_kmh) }}</b></div>
-            </div>
-            <span class="more-link">세부 제원 보기 {{ icon('arrow-right', 13) }}</span>
-        </a>
-        {% endfor %}
-    </div>
+<form class="list-search" method="get" action="{{ url_for('dictionary.home') }}">
+    <input type="hidden" name="country" value="{{ country.name }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="이름으로 찾기" aria-label="이름 검색">
+</form>
+</div>
+
+<div class="country-list">
+{% macro th(key, label) %}
+<th><a class="{{ 'on' if sort == key }}" href="{{ url_for('dictionary.home', country=country.name, sort=key, q=q or none) }}">{{ label }}</a></th>
+{% endmacro %}
+<table class="list-table">
+    <thead><tr>{{ th('name', '이름') }}{{ th('type', '전차 종류') }}{{ th('kind', '구분') }}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">
+        <td><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a></td>
+        <td>{{ r.type }}</td>
+        <td>{% if not r.lin.variant %}원형{% elif r.lin.original %}<a href="{{ url_for('dictionary.tank', tank_id=r.lin.original.tank_id) }}">{{ r.lin.original.canonical_name }}</a>의 개량형{% else %}{{ r.lin.family }} 계열 개량형{% endif %}</td>
+    </tr>
     {% else %}
-        {{ m.empty(country.name ~ '에 해당하는 전차 데이터가 없습니다.') }}
+    <tr><td colspan="3" class="list-empty">{{ "'" ~ q ~ "' 이름의 전차가 없습니다." if q else '등록된 전차가 없습니다.' }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<aside class="country-side">
+    <section class="panel side-panel">
+        <h2 class="side-title">전차 종류</h2>
+        <div class="side-bars">
+            {% for name, n in stats.types %}
+            <div class="sb-row">
+                <span class="sb-label">{{ name }}</span>
+                <span class="sb-track"><span class="sb-fill" style="width: {{ (n / stats.type_max * 100)|round(1) }}%"></span></span>
+                <span class="sb-n">{{ n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel side-panel">
+        <h2 class="side-title">위협도 분포</h2>
+        <p class="side-sub">기동·직접전투 기준 · 기준전차 M1A1 = 100</p>
+        <div class="side-bars">
+            {% for b in stats.bins %}
+            <div class="sb-row{{ ' sb-na' if b.stage is none }}">
+                <span class="sb-label">{{ b.label }}</span>
+                <span class="sb-track"><span class="sb-fill{{ ' stage%d'|format(b.stage) if b.stage }}" style="width: {{ (b.n / stats.bin_max * 100)|round(1) }}%"></span></span>
+                <span class="sb-n">{{ b.n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if stats.top %}
+    <section class="panel side-panel">
+        <h2 class="side-title">위협도 상위</h2>
+        <ol class="side-top">
+            {% for r in stats.top %}
+            <li><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a><b>{{ '%.1f'|format(r.t1) }}</b></li>
+            {% endfor %}
+        </ol>
+    </section>
     {% endif %}
-</section>
+</aside>
+</div>
 {% endblock %}

@@ -17,19 +17,10 @@
 <nav class="crumbs">
     <a href="{{ url_for('dictionary.home') }}">사전</a>
     {% for label, href in items %}
-        <span class="sep">{{ icon('chevron-right', 12) }}</span>
+        <span class="sep">›</span>
         {% if href %}<a href="{{ href }}">{{ label }}</a>{% else %}<span class="here">{{ label }}</span>{% endif %}
     {% endfor %}
 </nav>
-{% endmacro %}
-
-{# 아이콘 사각형 + 제목 + 부제로 된 패널 머리글 #}
-{% macro panel_head(ic, title, sub='', extra='') %}
-<div class="panel-head">
-    <span class="icon-box">{{ icon(ic) }}</span>
-    <div><div class="panel-title">{{ title }}</div>{% if sub %}<div class="panel-sub">{{ sub }}</div>{% endif %}</div>
-    {% if extra %}<div class="panel-extra">{{ extra }}</div>{% endif %}
-</div>
 {% endmacro %}
 
 {% macro empty(msg) %}

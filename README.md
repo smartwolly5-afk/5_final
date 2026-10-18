@@ -5,9 +5,9 @@
 ## 주요 기능
 
 ### 위협도 (`/`)
-- 영상 위 바운딩 박스와 위협도 순위 표 (High / Medium / Low 필터)
-- 표 행이나 박스를 클릭하면 상세 패널이 열림
-- 현재는 `app.py`의 목업 데이터(`MOCK_TARGETS`)를 사용
+- 영상 위 바운딩 박스, 탐지 카운터, 위협도 랭킹 표(전차별 점수·단계), 군집별 대응단계(1~4), 표적 상세, 미니맵
+- 단계 조정 · 전술 선택(군집별 1~10번) · 보고서 출력(`/report`)
+- **코드는 전부 `dashboard/` 폴더 한 곳에 있음 → 구조·흐름·고칠 곳은 [`dashboard/README.md`](dashboard/README.md)**
 
 ### 전차 사전 (`/dictionary`)
 위협도 계산과 별개로, MySQL `tank_specs` 테이블의 제원을 3단계로 탐색합니다.
@@ -33,12 +33,14 @@
 
 ## 실행 방법
 
-```bash
+Windows PowerShell 기준:
+
+```powershell
 # 1. 패키지 설치
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # 2. DB 접속 정보 설정: .env.example을 .env로 복사한 뒤 비밀번호 입력
-cp .env.example .env
+copy .env.example .env
 
 # 3. DB, 테이블, 예시 데이터 생성 (다시 실행해도 안전)
 python init_db.py
@@ -49,11 +51,30 @@ python app.py
 
 DB 연결 확인: http://127.0.0.1:5000/db-check
 
+사전 엑셀(`5_data/tank_dictionary_v2.xlsx`, 새 tank_id TANK_0001~0369)을 고친 뒤 DB에 반영:
+
+```powershell
+python load_xlsx.py        # tank_specs 전체 교체
+python sync_threat_db.py   # tank_threat·type_threat_summary 재계산
+```
+
+기존 번호 → 새 번호 대응은 `5_data/id_map.csv`. 코드에 직접 적힌 번호(`threat_calc.py`의 `BASE_ID`, `GEN_MANUAL`)도 새 번호 기준이다.
+
+위협도 화면(`/`)과 대시보드 API는 DB 없이도 동작합니다 (mock 입력 + `dashboard/threat/` 계산).
+미니맵은 Leaflet·OpenStreetMap 타일을 인터넷에서 받으므로 오프라인이면 "지도를 불러올 수 없음"이 표시됩니다.
+
+테스트:
+
+```powershell
+python -m pytest tests dashboard/tests -q
+```
+
 ## 폴더 구조
 
 ```
 tank/
-├── app.py                  # Flask 앱, 위협도 페이지·API, 블루프린트 등록
+├── app.py                  # Flask 앱: 블루프린트 등록 (dashboard, dictionary, threat_api)
+├── dashboard/              # 위협도 대시보드 전체 (계산·API·화면·테스트) → dashboard/README.md
 ├── config.py               # .env 설정 읽기
 ├── db.py                   # MySQL 연결 (get_connection)
 ├── schema.sql              # tank_specs 테이블 + 예시 데이터
@@ -62,12 +83,11 @@ tank/
 ├── ui.py                   # 공통 아이콘 icon()
 ├── templates/
 │   ├── _nav.html           # 공통 상단 바
-│   ├── index.html          # 위협도 페이지
 │   └── dictionary/         # 사전 페이지 (base, macros, home, country, family, missing)
 ├── static/
-│   ├── style.css           # 공통 테마 변수 + 위협도 스타일
+│   ├── style.css           # 공통: 색상 변수·상단 바·푸터
 │   ├── dictionary.css      # 사전 스타일
-│   └── dashboard.js        # 위협도 표·상세 패널 동작
+│   └── tank_images/        # 사전 전차 사진 (TANK_xxxx.확장자)
 └── TANK_개발가이드.docx     # 구조 설명, 처음부터 만들기, 수정 방법
 ```
 
