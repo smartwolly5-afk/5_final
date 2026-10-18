@@ -12,10 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # 5_final 폴더
 def demo_env(tmp_path, monkeypatch):
     monkeypatch.setenv("TANKLAB_DEMO", "1")
     monkeypatch.setenv("TANKLAB_SQLITE", str(tmp_path / "test.sqlite3"))
-    from dashboard import media, unknown_registry
+    from dashboard import media
     from dashboard.threat import dictdb
-    monkeypatch.setattr(media, "OUT", tmp_path / "static")
-    monkeypatch.setattr(unknown_registry, "_ready", False)
+    monkeypatch.setattr(media, "OUT", tmp_path / "static")      # 테이블은 threat_db.ensure_schema 가 SQLite 파일마다 새로 만듦
     dictdb.reset()                     # SQLite 에 tank_threat 가 없으니 demo_seed.json 을 읽게 됨
     yield tmp_path
     dictdb.reset()

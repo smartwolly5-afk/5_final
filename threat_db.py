@@ -65,6 +65,17 @@ def execute_all(steps):
         conn.close()
 
 
+_ready = set()   # 테이블을 이미 만든 연결 대상 (MySQL 또는 SQLite 파일 경로)
+
+
+def ensure_schema():
+    """schema_threat.sql 을 연결 대상마다 한 번만 적용 (전부 CREATE TABLE IF NOT EXISTS 라 여러 번 돌려도 안전)."""
+    target = os.getenv("TANKLAB_SQLITE", str(HERE / "tank_demo.sqlite3")) if demo() else "mysql"
+    if target not in _ready:
+        init_schema()
+        _ready.add(target)
+
+
 def init_schema():
     sql = (HERE / "schema_threat.sql").read_text(encoding="utf-8")
     sql = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--"))

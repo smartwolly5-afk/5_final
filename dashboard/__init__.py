@@ -24,6 +24,7 @@ from . import unknown_registry as registry
 from .threat import config as C      # 단계 이름 (LEVELS), 전술 가중치 목록
 from .threat.core import TACTIC_NAMES  # 전술 번호 → 이름
 from .threat.pipeline import MOCK_V2   # 기본 샘플 (영상 A, B)
+from .threat.adapter import rl         # 판정 엔진·기록 (저장소 루트 response_level.py)
 
 bp = Blueprint("dashboard", __name__,
                template_folder="templates",            # dashboard/templates/dashboard/*.html
@@ -32,6 +33,8 @@ bp = Blueprint("dashboard", __name__,
 log = logging.getLogger(__name__)
 
 # 서버 메모리 상태 (요청 사이에 유지). 영상마다 분석 1건(run)을 들고 있고, 화면은 current 영상을 본다.
+# 기록의 기준은 DB 다: 판정마다 cluster_assessment, 지휘관 조치마다 commander_override 에 남는다 (response_level).
+#   STATE 는 화면 속도를 위한 캐시일 뿐이라 서버를 다시 켜면 사라진다.
 # ponytail: 프로세스 메모리 — 서버 재시작 시 사라지고 사용자 간 공유됨. 다중 사용자면 DB(cluster_assessment) 저장으로.
 #   (Unknown 레지스트리는 DB 라 재시작해도 남는다)
 STATE = {"runs": {},       # 영상 이름 → {"payload", "prev", "result", "overrides": {군집: 전술}, "commanders": {표적: bool}}
@@ -53,8 +56,9 @@ def _run(video=None):
 
 
 def _attach(result, new):
-    """v2 표적에 대표 crop 주소와 Unknown 그룹 id 를 붙이고 내부 필드(_track)를 뗀다.
-    new=True(새 분석) 면 Unknown 을 레지스트리에 저장, False(전술·지휘전차 변경 재계산) 면 저장된 그룹만 찾는다."""
+    """계산 결과에 파일·DB 작업을 붙인다: v2 표적의 대표 crop 주소와 Unknown 그룹 id, 군집 판정 기록(cluster_assessment).
+    new=True(새 분석) 면 Unknown 을 레지스트리에 저장, False(전술·지휘전차 변경 재계산) 면 저장된 그룹만 찾는다.
+    판정 기록은 매번 남긴다 (재판정도 판정 1건). 내부 필드(_track, _assess_*)는 여기서 뗀다."""
     video = _video(result)
     for t in result["targets"]:
         if "_track" not in t:
@@ -68,9 +72,15 @@ def _attach(result, new):
             except Exception as e:                                     # 레지스트리 DB 가 꺼져 있어도 대시보드는 보여 준다
                 log.warning("Unknown 레지스트리 저장 실패 (%s %s): %s", video, t["tracking_id"], e)
         del t["_track"]
-    for c in result["clusters"]:                                       # 판정 엔진 입력·결과 (기록 저장용 내부 필드)
-        c.pop("_assess_input", None)
-        c.pop("_assess_result", None)
+    saved = True
+    for c in result["clusters"]:                                       # 군집 판정 기록 (cluster_assessment)
+        inp, res = c.pop("_assess_input"), c.pop("_assess_result")
+        try:
+            rl.save_assessment(dict(inp, cluster_id=rl.cluster_key(video, c["cluster_id"])), res)
+        except Exception as e:                                         # DB 가 없어도 화면 분석은 계속
+            saved = False
+            log.warning("판정 기록 저장 실패 (%s %s): %s", video, c["cluster_id"], e)
+    result["alert"]["saved"] = saved                                   # 화면·API 에서 기록 여부 확인용
     return result
 
 

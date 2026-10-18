@@ -26,15 +26,7 @@ if str(ROOT) not in sys.path:
 import threat_db as tdb  # noqa: E402
 
 log = logging.getLogger(__name__)
-_ready = False
-
-
-def ensure_schema():
-    """레지스트리 테이블이 없으면 만든다 (schema_threat.sql 전체가 CREATE TABLE IF NOT EXISTS)."""
-    global _ready
-    if not _ready:
-        tdb.init_schema()
-        _ready = True
+ensure_schema = tdb.ensure_schema   # 레지스트리 테이블이 없으면 만든다 (threat_db 한 곳에서 관리)
 
 
 def _now():

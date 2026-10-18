@@ -86,3 +86,38 @@ def test_sync_seed_defaults_match_config():
     import sync_threat_db
     d = {k: v for k, (v, _) in sync_threat_db.LEVEL_DEFAULTS.items()}
     assert d == {**{f"lv{lv}": th for th, lv in C.LEVEL_THRESHOLDS}, "floor_t": C.FLOOR_TANK_THREAT}
+
+
+# ───────── 3단계: 판정 기록 (cluster_assessment) ─────────
+def client():
+    from app import app
+    return app.test_client()
+
+
+def test_analyze_saves_one_row_per_cluster_with_video_key():
+    c = client()
+    r = c.post("/api/analyze")
+    assert r.status_code == 200 and r.json["alert"]["saved"] is True
+    rows = tdb.query("SELECT cluster_id, level, input_json FROM cluster_assessment ORDER BY id")
+    assert [x["cluster_id"] for x in rows] == ["mock_video_A.mp4:C-1", "mock_video_B.mp4:C-1"]
+    assert json.loads(rows[0]["input_json"])["vehicles"][0]["T"] is not None     # 미리 계산된 T 가 입력에 저장됨
+    assert r.json["clusters"][0]["cluster_id"] == "C-1" and "_assess_input" not in r.json["clusters"][0]
+
+
+def test_saved_input_can_be_rejudged_by_apply_override():
+    client().post("/api/analyze")
+    res = rl.apply_override("mock_video_A.mp4:C-1", "core_target", "Tank-01", "tester", lookup=({}, {}, COEF))
+    assert res["level"] == 2                                     # 핵심표적 → 최소 2단계 (같은 assess 로 재판정)
+
+
+def test_save_failure_keeps_analysis(monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("DB 꺼짐")
+    monkeypatch.setattr(rl, "save_assessment", boom)
+    r = client().post("/api/analyze")
+    assert r.status_code == 200 and r.json["alert"]["saved"] is False and r.json["targets"]
+
+
+def test_cluster_key_fits_column():
+    k = rl.cluster_key("v" * 300 + ".mp4", "C-12")
+    assert len(k) <= 64 and k.endswith(":C-12") and k != rl.cluster_key("w" * 300 + ".mp4", "C-12")

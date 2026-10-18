@@ -19,8 +19,10 @@ assess() 는 순수 함수(조회 데이터를 인자로 받음). DB 연동은 �
               {"track_id": "trk-9", "status": "Unknown", "category": "전차", "type_group": "주력전차"}],
  "frames": [["trk-1", "trk-9"], ["trk-1"]]}
 """
+import hashlib
 import json
 import logging
+from datetime import datetime
 
 LEVELS = {1: ("즉시 보고", "적"), 2: ("우선 감시", "주황"), 3: ("지속 감시", "황"), 4: ("관심", "청")}
 ECHELONS = [(16, 3, "대대"), (5, 2, "중대"), (1, 1, "소대")]  # (최소 대수, E, 제대명)
@@ -163,13 +165,43 @@ def load_lookup():
     return tanks, unknown_t, load_coef()
 
 
-def assess_and_save(cluster, lookup=None):
+def _now():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")      # 시각을 직접 넣음 (SQLite 기본값은 UTC 라 MySQL 과 달라짐)
+
+
+def cluster_key(video, cluster_id):
+    """기록용 군집 ID '영상:군집' — 영상이 달라도 C-1 이 겹치지 않게. DB 컬럼(64자)보다 길면 앞부분 + 해시로 줄인다."""
+    key = f"{video}:{cluster_id}"
+    if len(key) <= 64:
+        return key
+    tail = f"~{hashlib.sha1(key.encode()).hexdigest()[:8]}:{cluster_id}"[-64:]
+    return str(video)[:64 - len(tail)] + tail
+
+
+def save_assessment(cluster, result):
+    """판정 1건 기록 (cluster_assessment). cluster = assess 입력 그대로 → apply_override 가 이 입력으로 다시 판정한다."""
     import threat_db as tdb
+    tdb.ensure_schema()
+    return tdb.execute("INSERT INTO cluster_assessment (cluster_id, level, score, t_cluster, echelon_e, n_vehicles, tactic_no,"
+                       " input_json, result_json, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                       (cluster.get("cluster_id"), result["level"], result["S"], result["T_cluster"], result["E"],
+                        result["N"], result["tactic"], json.dumps(cluster, ensure_ascii=False),
+                        json.dumps(result, ensure_ascii=False), _now()))
+
+
+def record_override(cluster_id, actor, item, before, after, level_before, level_after):
+    """지휘관 조치 1건 기록 (commander_override). item: tactic | core_target | commander | stage."""
+    import threat_db as tdb
+    tdb.ensure_schema()
+    tdb.execute("INSERT INTO commander_override (cluster_id, actor, item, before_value, after_value, level_before,"
+                " level_after, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (cluster_id, actor, item, json.dumps(before, ensure_ascii=False), json.dumps(after, ensure_ascii=False),
+                 level_before, level_after, _now()))
+
+
+def assess_and_save(cluster, lookup=None):
     result = assess(cluster, *(lookup or load_lookup()))
-    tdb.execute("INSERT INTO cluster_assessment (cluster_id, level, score, t_cluster, echelon_e, n_vehicles, tactic_no,"
-                " input_json, result_json) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (cluster.get("cluster_id"), result["level"], result["S"], result["T_cluster"], result["E"], result["N"],
-                 result["tactic"], json.dumps(cluster, ensure_ascii=False), json.dumps(result, ensure_ascii=False)))
+    save_assessment(cluster, result)
     return result
 
 
@@ -202,8 +234,5 @@ def apply_override(cluster_id, item, value, actor="unknown", remove=False, looku
     else:
         raise ValueError(f"알 수 없는 항목: {item}")
     result = assess_and_save(cluster, lookup)
-    tdb.execute("INSERT INTO commander_override (cluster_id, actor, item, before_value, after_value, level_before,"
-                " level_after) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (cluster_id, actor, item, json.dumps(before, ensure_ascii=False), json.dumps(after, ensure_ascii=False),
-                 level_before, result["level"]))
+    record_override(cluster_id, actor, item, before, after, level_before, result["level"])
     return result
