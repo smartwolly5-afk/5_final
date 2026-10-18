@@ -1,7 +1,9 @@
 """탐지 결과 → 대시보드 응답 JSON 조립. 화면(dashboard.js)은 이 응답만 쓴다.
 
-입력 (POST /api/analyze 본문, 비우면 mock_detections.json):
-  {"source": {"video", "captured_at", "source", "observer": {"lat", "lon", "heading_deg"}},
+입력 (POST /api/analyze 본문, 비우면 static/mock_frames 샘플 A → B):
+  v2 (프레임 단위, 모델 출력 계약은 contract.md): {"source": {..., "frame_size"}, "frames": [{"frame_idx", "image_path", "detections"}]}
+     → track.aggregate (트랙 집계) → judge.judge (Known/Known_Variant/Unknown) → judge.threat_of (사전 DB 위협도·cope cage)
+  v1 (하위 호환, mock_detections.json): {"source": {"video", "captured_at", "source", "observer": {"lat", "lon", "heading_deg"}},
    "detections": [탐지 결과 (core.py 머리말 형식), ...]}
 
 응답 AnalysisResult (/api/analyze, /api/threats, /api/clusters/<id>/tactic 공통):
@@ -17,7 +19,13 @@
              "scores": {"firepower","mobility","protection","total"}|null, "weights": {...}|null,
              "tactic", "tactic_name", "level", "label",                                # level/label = 소속 군집 대응단계
              "tags": [...],                                                           # 근거 태그 (이 전차에 대한 것만)
-             "position": {"bearing_deg","distance_m","lat","lon","estimated": true}}
+             "position": {"bearing_deg","distance_m","lat","lon","estimated": true},
+             # v2 에서 채움 (v1 은 status 만 Known/Unknown, 나머지 null·빈값)
+             "status": "Known"|"Known_Variant"|"Unknown", "tank_id", "family", "type_group", "threat_source",   # 위협도를 어디서 가져왔는지
+             "threat_before_bonus", "has_cope_cage", "cope_tag", "commander_evidence": {"n", "m", "on", "override"}|null,
+             "parts": [{"cls", "conf", "bbox"}], "n_frames",
+             "unknown_group_id", "crop_url"}                                          # 이 둘은 dashboard/__init__.py 가 채움
+  source 에는 v2 일 때 "frame_image" (화면에 띄울 프레임, static 기준 경로), "frame_idx" 가 붙는다.
 GET /api/threats/<id> 응답: {"target": Target, "cluster": 소속 Cluster}
 """
 import json          # mock 파일 읽기
@@ -25,10 +33,14 @@ import math          # 위치 추정 삼각함수
 from pathlib import Path
 
 from . import config as C
+from . import judge as J
+from . import track as TR
 from .core import (CATEGORIES, TACTIC_NAMES, Tactic, cluster_response_level, infer_tactic, is_unknown,
                    quant_score, spec_of, tactic_weights, tank_threat, threat_grade)
 
-MOCK_FILE = Path(__file__).with_name("mock_detections.json")  # 이미지 분석 모델 대신 쓰는 탐지 결과
+MOCK_FILE = Path(__file__).with_name("mock_detections.json")  # v1 탐지 결과 (하위 호환 테스트용)
+MOCK_DIR = Path(__file__).resolve().parents[2] / "static" / "mock_frames"
+MOCK_V2 = [MOCK_DIR / "mock_video_A_5f.json", MOCK_DIR / "mock_video_B_5f.json"]  # 기본 mock: 영상 A → B (5프레임)
 RANKED = ("전차", "미확인")                                    # 랭킹 표에 올리는 분류
 COUNT_KEYS = {"전차": "tank", "기갑차": "apc", "포병": "artillery", "인원": "infantry"}  # 카운터 키
 AXIS_LABELS = {"firepower": "화력", "mobility": "기동력", "protection": "방호력"}       # 근거 태그용 이름
@@ -83,13 +95,28 @@ def _validate(payload):
     return dets
 
 
+def _commander_tag(row):
+    ev = row["commander_evidence"]
+    if ev and ev["override"] is not None:                                              # 지휘관이 화면에서 바꿈
+        return "지휘전차 (지휘관 지정)" if row["is_commander"] else "지휘전차 해제 (지휘관)"
+    if ev and ev["on"]:
+        return f"안테나 탐지 {ev['n']}/{ev['m']}프레임 → 지휘전차 추정"
+    return "지휘전차" if row["is_commander"] else None
+
+
 def _target_tags(row, scores):
     """근거 태그 = 이 전차의 위협도를 설명하는 사실만 (군집 판정 근거는 Cluster.reasons 로 따로 감)."""
     tags = []
-    if row["is_commander"]:
-        tags.append("지휘전차")                                                        # 지휘통제 가중치가 적용된 이유
+    cmd = _commander_tag(row)
+    if cmd:
+        tags.append(cmd)                                                               # 지휘통제 가중치가 적용된 이유
+    if row["threat_source"] and row["status"] != "Known":
+        tags.append(row["threat_source"])                                              # 'T-72 계열 상위25%' 등
+    if row["cope_tag"]:
+        tags.append(row["cope_tag"])                                                   # 'cope cage → 방호 ×1.10' 
     if row["is_unknown"]:
-        tags.append("미확인 · 분석관 검토" if row["category"] == "미확인" else "제원 없음 · 분석관 검토")
+        tags.append("제원 없음 · 분석관 검토" if row["category"] == "전차" and row["threat_source"] is None
+                    else "미확인 · 분석관 검토")                                    # v2 미확인은 대체값이 있어도 검토 대상
     if row["is_new"]:
         tags.append("신규")                                                            # 직전 분석에 없던 표적
     if scores:                                                                        # 점수가 있는 전차만
@@ -101,12 +128,37 @@ def _target_tags(row, scores):
     return tags
 
 
-def analyze(payload, prev=None, tactic_overrides=None):
+def _v2_detections(payload, commander_overrides):
+    """v2 입력 → 트랙 단위 탐지 목록 (v1 탐지 형식 + status, _v2). 전차·미확인만 판정한다."""
+    tracks, shown = TR.aggregate(payload)
+    dets = []
+    for t in tracks:
+        j = J.judge(t) if t["category"] in RANKED else None
+        ov = commander_overrides.get(t["tracking_id"])                              # 지휘관 지정·해제 (없으면 None)
+        model = None
+        if j and j["status"] == "Known":
+            model = j["name"]
+        elif j and j["status"] == "Known_Variant":
+            model = f"{j['family']} 계열"
+        dets.append({"tracking_id": t["tracking_id"], "category": t["category"], "model": model,
+                     "confidence": t["confidence"], "bbox": t["bbox"], "cluster_id": t["cluster_id"],
+                     "is_commander": t["commander"]["on"] if ov is None else ov,
+                     "status": j["status"] if j else None,
+                     "_v2": {"track": t, "judge": j, "commander": dict(t["commander"], override=ov)}})
+    return dets, shown
+
+
+def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None):
     """payload(입력 형식) → AnalysisResult.
     prev            = 직전 분석 결과 (신규 표적·단계 변화 비교용, 없으면 None)
-    tactic_overrides = {cluster_id: 전술번호} — 화면 '전술 선택'으로 지휘관이 지정한 전술 (그 군집 전차 전부에 적용)"""
-    dets = _validate(payload)                                                          # 입력 검증
-    source = payload["source"]
+    tactic_overrides = {cluster_id: 전술번호} — 화면 '전술 선택'으로 지휘관이 지정한 전술 (그 군집 전차 전부에 적용)
+    commander_overrides = {tracking_id: bool} — 지휘관이 지휘전차를 지정·해제 (v2 만)
+    v2 표적에는 레지스트리 저장용 내부 필드 "_track" 이 붙는다 (API 로 내보내기 전에 dashboard/__init__.py 가 뗌)."""
+    if TR.is_v2(payload):
+        dets, shown = _v2_detections(payload, commander_overrides or {})
+        source = dict(payload["source"], frame_image=shown.get("image_path"), frame_idx=shown["frame_idx"])
+    else:
+        dets, source = _validate(payload), payload["source"]                           # 입력 검증
     prev_ids = {t["tracking_id"] for t in prev["targets"]} if prev else None           # 직전 표적 ID 목록
     overrides = tactic_overrides or {}
 
@@ -132,8 +184,26 @@ def analyze(payload, prev=None, tactic_overrides=None):
                    "is_unknown": is_unknown(d), "is_new": prev_ids is not None and d["tracking_id"] not in prev_ids,
                    "cluster_id": cid, "rank": None, "threat": None, "grade": None, "scores": None, "weights": None,
                    "tactic": int(tactic), "tactic_name": TACTIC_NAMES[tactic],
-                   "position": estimate_position(d, source["observer"])}
-            if spec:                                                                   # 제원이 있는 전차만 점수 계산
+                   "position": estimate_position(d, source["observer"]),
+                   "status": d.get("status") or ("Unknown" if is_unknown(d) else "Known"),
+                   "tank_id": None, "family": None, "type_group": None, "threat_source": None, "threat_before_bonus": None, "cope_tag": None,
+                   "has_cope_cage": False, "commander_evidence": None, "parts": [], "n_frames": 1,
+                   "unknown_group_id": None, "crop_url": None}
+            v2 = d.get("_v2")
+            if v2:                                                                     # v2: 트랙 집계·판정 결과
+                t, j = v2["track"], v2["judge"]
+                row.update(has_cope_cage=t["cope_cage"]["on"], commander_evidence=v2["commander"],
+                           parts=t["parts"], n_frames=t["n_frames"], _track=t)
+                if j:
+                    row.update(tank_id=j["tank_id"], family=j["family"], type_group=j["type_group"])
+            if v2 and v2["judge"]:                                                     # 사전 DB 위협도 (판정 상태별)
+                cmd = row["is_commander"] and not override
+                th = J.threat_of(v2["judge"], tactic, cmd, row["has_cope_cage"])
+                row.update(threat=th["threat"], threat_before_bonus=th["threat_before_bonus"], scores=th["scores"],
+                           weights=th["weights"], threat_source=th["source"], cope_tag=th["cope_tag"],
+                           tactic=int(th["tactic"]), tactic_name=TACTIC_NAMES[th["tactic"]])
+                row["grade"] = threat_grade(row["threat"])
+            elif spec:                                                                   # 제원이 있는 전차만 점수 계산
                 cmd = row["is_commander"] and not override                             # 지휘관이 전술을 지정하면 그 전술이 우선
                 used, (wf, wm, wp) = tactic_weights(tactic, cmd)                       # 실제 적용된 전술·가중치
                 row.update(threat=tank_threat(spec, tactic, cmd), scores=quant_score(spec),

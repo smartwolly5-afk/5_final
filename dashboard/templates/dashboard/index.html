@@ -28,6 +28,7 @@
             <section class="section section-video">
                 <div class="section-head">
                     <h2 class="section-title">실시간 감시</h2>
+                    <div class="video-tabs" id="video-tabs" role="tablist" aria-label="영상" hidden></div>  <!-- 분석한 영상이 2개 이상이면 A/B 탭 -->
                     <!-- 탐지 카운터: 숫자는 API counts 값으로 JS 가 채움 -->
                     <div class="count-bar" id="count-bar">
                         <span class="cb-item">{{ icon('crosshair', 14) }}<span class="cb-label">전체</span><b id="cb-total">0</b></span>
@@ -44,11 +45,14 @@
                 </div>
 
                 <div class="video-card">
-                    <div class="video" id="video">                      <!-- 바운딩 박스는 JS 가 이 안에 그림 -->
+                    <div class="video" id="video">
+                        <!-- 프레임: 원본 프레임 이미지 + 바운딩 박스·부품 표시 (JS 가 이미지 비율대로 크기를 맞춤) -->
+                        <div class="frame" id="frame"><img id="frame-img" alt="분석한 영상 프레임" hidden></div>
                         <div class="video-meta" id="video-meta"></div>  <!-- 촬영일 (출처) -->
                         <div class="bbox-legend">
                             <div><span class="leg-swatch solid"></span>박스 색 = 소속 군집 대응단계</div>
                             <div><span class="leg-swatch dashed purple"></span>미확인 표적</div>
+                            <div><span class="leg-swatch dotted"></span>부품 (안테나·cope cage)</div>
                         </div>
                     </div>
                     <div class="player">                                <!-- 재생바: 실제 영상 연결 전이라 모양만 -->
@@ -138,6 +142,11 @@
                     <span class="badge" id="pb-status-badge"></span>
                     <span class="conf" id="pb-conf"></span>
                 </div>
+                <!-- 대표 crop: 원본 프레임에서 잘라 저장한 이미지 (v2 입력만) -->
+                <figure class="pb-crop" id="pb-crop" hidden>
+                    <img id="pb-crop-img" alt="">
+                    <figcaption id="pb-crop-cap"></figcaption>
+                </figure>
                 <div class="pb-score-row">
                     <span class="pb-score" id="pb-score"></span>         <!-- 전차 위협도 점수 -->
                     <span id="pb-grade"></span>                         <!-- 위협도 단계 배지 -->
@@ -146,7 +155,10 @@
                 <div id="pb-bars"></div>                                <!-- 화력·기동·방호 막대 -->
                 <div class="chip-row" id="pb-reasons"></div>            <!-- 근거 태그 -->
                 <p class="muted" id="pb-info"></p>                      <!-- 추정 거리·방위·군집·전술 -->
-                <a class="btn btn-outline" id="pb-dict-link" href="#">{{ icon('book', 16) }} 사전에서 보기</a>
+                <div class="pb-actions">
+                    <button class="btn btn-outline" id="pb-commander" type="button" hidden></button>  <!-- 지휘전차 지정·해제 (v2) -->
+                    <a class="btn btn-outline" id="pb-dict-link" href="#">{{ icon('book', 16) }} 사전에서 보기</a>
+                </div>
             </div>
 
             <!-- (C) 미니맵: 관측 지점 기준 추정 위치 -->

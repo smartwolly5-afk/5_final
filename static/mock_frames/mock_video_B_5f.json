@@ -1,0 +1,599 @@
+{
+ "source": {
+  "video": "mock_video_B.mp4",
+  "captured_at": "2026-10-18",
+  "source": "MOCK",
+  "observer": {
+   "lat": 48.6,
+   "lon": 38.0,
+   "heading_deg": 90
+  },
+  "frame_size": {
+   "w": 1920,
+   "h": 1080
+  }
+ },
+ "frames": [
+  {
+   "frame_idx": 120,
+   "t_sec": 4.0,
+   "image_path": "mock_frames/mock_video_B_000120.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.85,
+     "bbox_px": {
+      "x": 198,
+      "y": 578,
+      "w": 403,
+      "h": 261
+     },
+     "cluster_id": "C-1",
+     "parts": [],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.9
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.03
+       }
+      ],
+      "embedding": [
+       0.2059,
+       -0.246,
+       0.103,
+       -0.2151,
+       0.2408,
+       -0.2957,
+       -0.1196,
+       -0.1261,
+       -0.457,
+       0.1893,
+       -0.3084,
+       -0.2404,
+       -0.14,
+       0.1603,
+       -0.2047,
+       0.4241
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.9,
+     "bbox_px": {
+      "x": 931,
+      "y": 537,
+      "w": 537,
+      "h": 255
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.63,
+       "bbox_px": {
+        "x": 1049,
+        "y": 506,
+        "w": 268,
+        "h": 102
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.25
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.21
+       }
+      ],
+      "embedding": [
+       -0.0384,
+       -0.331,
+       0.2398,
+       0.0745,
+       0.0758,
+       -0.3081,
+       -0.1642,
+       -0.1726,
+       -0.0497,
+       0.2388,
+       0.4613,
+       -0.3301,
+       0.486,
+       -0.2218,
+       0.0155,
+       0.0401
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  },
+  {
+   "frame_idx": 121,
+   "t_sec": 4.033,
+   "image_path": "mock_frames/mock_video_B_000121.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.85,
+     "bbox_px": {
+      "x": 190,
+      "y": 579,
+      "w": 407,
+      "h": 264
+     },
+     "cluster_id": "C-1",
+     "parts": [],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.91
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.03
+       }
+      ],
+      "embedding": [
+       0.204,
+       -0.2521,
+       0.1071,
+       -0.2143,
+       0.2453,
+       -0.3026,
+       -0.1231,
+       -0.1381,
+       -0.4511,
+       0.1885,
+       -0.2981,
+       -0.237,
+       -0.1265,
+       0.151,
+       -0.2153,
+       0.4269
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.88,
+     "bbox_px": {
+      "x": 930,
+      "y": 537,
+      "w": 542,
+      "h": 258
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.64,
+       "bbox_px": {
+        "x": 1049,
+        "y": 506,
+        "w": 271,
+        "h": 103
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.25
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.22
+       }
+      ],
+      "embedding": [
+       -0.0308,
+       -0.3272,
+       0.2352,
+       0.0717,
+       0.0714,
+       -0.2993,
+       -0.167,
+       -0.1815,
+       -0.0467,
+       0.2408,
+       0.4729,
+       -0.3314,
+       0.485,
+       -0.2129,
+       0.0187,
+       0.0388
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  },
+  {
+   "frame_idx": 122,
+   "t_sec": 4.067,
+   "image_path": "mock_frames/mock_video_B_000122.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.87,
+     "bbox_px": {
+      "x": 182,
+      "y": 580,
+      "w": 411,
+      "h": 266
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "antenna",
+       "conf": 0.61,
+       "bbox_px": {
+        "x": 387,
+        "y": 584,
+        "w": 30,
+        "h": 88
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.92
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.03
+       }
+      ],
+      "embedding": [
+       0.2128,
+       -0.2444,
+       0.1031,
+       -0.2037,
+       0.2314,
+       -0.2923,
+       -0.131,
+       -0.1286,
+       -0.4575,
+       0.1952,
+       -0.3048,
+       -0.2387,
+       -0.1388,
+       0.1623,
+       -0.2111,
+       0.4275
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.86,
+     "bbox_px": {
+      "x": 930,
+      "y": 538,
+      "w": 548,
+      "h": 260
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.6,
+       "bbox_px": {
+        "x": 1050,
+        "y": 506,
+        "w": 273,
+        "h": 104
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.23
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.21
+       }
+      ],
+      "embedding": [
+       -0.0408,
+       -0.3376,
+       0.245,
+       0.0867,
+       0.0691,
+       -0.2936,
+       -0.1576,
+       -0.1726,
+       -0.0481,
+       0.2548,
+       0.4631,
+       -0.3356,
+       0.4768,
+       -0.2191,
+       0.0221,
+       0.0319
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  },
+  {
+   "frame_idx": 123,
+   "t_sec": 4.1,
+   "image_path": "mock_frames/mock_video_B_000123.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.84,
+     "bbox_px": {
+      "x": 173,
+      "y": 580,
+      "w": 415,
+      "h": 269
+     },
+     "cluster_id": "C-1",
+     "parts": [],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.91
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.04
+       }
+      ],
+      "embedding": [
+       0.2161,
+       -0.2517,
+       0.1075,
+       -0.2114,
+       0.2399,
+       -0.2931,
+       -0.1194,
+       -0.1221,
+       -0.4555,
+       0.1935,
+       -0.3112,
+       -0.2417,
+       -0.1277,
+       0.1531,
+       -0.2196,
+       0.4157
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.88,
+     "bbox_px": {
+      "x": 929,
+      "y": 538,
+      "w": 554,
+      "h": 263
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.62,
+       "bbox_px": {
+        "x": 1051,
+        "y": 506,
+        "w": 276,
+        "h": 105
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.25
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.22
+       }
+      ],
+      "embedding": [
+       -0.0407,
+       -0.3368,
+       0.2401,
+       0.0804,
+       0.0728,
+       -0.3017,
+       -0.159,
+       -0.1736,
+       -0.061,
+       0.2449,
+       0.4742,
+       -0.3278,
+       0.4739,
+       -0.2177,
+       0.0217,
+       0.0249
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  },
+  {
+   "frame_idx": 124,
+   "t_sec": 4.133,
+   "image_path": "mock_frames/mock_video_B_000124.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.85,
+     "bbox_px": {
+      "x": 165,
+      "y": 581,
+      "w": 420,
+      "h": 272
+     },
+     "cluster_id": "C-1",
+     "parts": [],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.92
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.05
+       }
+      ],
+      "embedding": [
+       0.2074,
+       -0.2574,
+       0.1116,
+       -0.2061,
+       0.2387,
+       -0.3034,
+       -0.1197,
+       -0.1249,
+       -0.4459,
+       0.1951,
+       -0.3055,
+       -0.2331,
+       -0.1349,
+       0.1549,
+       -0.2111,
+       0.4308
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.87,
+     "bbox_px": {
+      "x": 928,
+      "y": 539,
+      "w": 559,
+      "h": 266
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.66,
+       "bbox_px": {
+        "x": 1051,
+        "y": 506,
+        "w": 279,
+        "h": 106
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.25
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.22
+       }
+      ],
+      "embedding": [
+       -0.04,
+       -0.3294,
+       0.2415,
+       0.0812,
+       0.0693,
+       -0.3139,
+       -0.1735,
+       -0.1739,
+       -0.0521,
+       0.258,
+       0.4638,
+       -0.3292,
+       0.4718,
+       -0.2113,
+       0.0149,
+       0.0335
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  }
+ ]
+}

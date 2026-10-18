@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>미확인 레지스트리 - TANK</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('dashboard.static', filename='dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('dashboard.static', filename='unknowns.css') }}">
+</head>
+<body>
+<div class="layout">
+    {% with active = 'unknowns' %}{% include '_nav.html' %}{% endwith %}
+
+    <div class="unk-grid">
+        <!-- 왼쪽: 미확인 그룹 순위 (/api/unknowns) -->
+        <section class="section unk-list">
+            <div class="section-head">
+                <h2 class="section-title">미확인 그룹 순위</h2>
+                <p class="muted unk-note">같은 미확인 기종으로 보이는 표적을 영상에 상관없이 묶었습니다. 순위 = 위협도 × 출현 빈도</p>
+            </div>
+            <div class="table-wrap">
+                <table class="rank-table unk-table">
+                    <thead>
+                    <tr>
+                        <th>순위</th><th>그룹</th><th>추정 계열</th><th>위협도</th><th>트랙</th><th>영상</th><th>최근 출현</th>
+                    </tr>
+                    </thead>
+                    <tbody id="unk-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 오른쪽: 그룹 상세 (/api/unknowns/<id>) -->
+        <aside class="unk-detail" id="unk-detail">
+            <p class="muted" id="unk-empty">그룹을 고르면 crop 과 출현 위치가 보입니다.</p>
+            <div id="unk-body-detail" hidden>
+                <div class="detail-id">
+                    <span class="obj-id" id="ud-title"></span>
+                    <span class="badge unknown" id="ud-status"></span>
+                </div>
+                <div class="chip-row" id="ud-chips"></div>
+                <dl class="ud-facts" id="ud-facts"></dl>
+                <h3 class="ud-sub">crop <span class="muted" id="ud-crop-count"></span></h3>
+                <div class="ud-gallery" id="ud-gallery"></div>
+                <h3 class="ud-sub">출현 위치 (추정)</h3>
+                <div class="ud-map" id="ud-map"><div class="map-fail" id="map-fail" hidden>지도를 불러올 수 없음</div></div>
+            </div>
+        </aside>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('dashboard.static', filename='unknowns.js') }}"></script>
+</body>
+</html>

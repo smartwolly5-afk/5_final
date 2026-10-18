@@ -113,6 +113,31 @@
     z-index: 2;
 }
 
+/* --- 프레임: 원본 이미지 + 박스. 크기는 JS fitFrame 이 원본 비율로 맞춤 (박스 % 좌표가 사진과 일치) --- */
+.frame { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); }
+.frame img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.frame img[hidden] { display: none; }
+
+/* --- 영상 A/B 탭 --- */
+.video-tabs { display: flex; gap: 4px; }
+.video-tabs[hidden] { display: none; }
+.video-tabs button { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 6px; padding: 4px 10px; font-size: 13px; }
+.video-tabs button:hover { background: var(--surface-soft); }
+.video-tabs button[aria-selected="true"] { border-color: var(--text); color: var(--text); font-weight: 700; }
+
+/* --- 부품 (안테나·cope cage): 흰 점선 작은 박스 + 이름. 클릭은 아래 표적 박스로 통과 --- */
+.part { position: absolute; border: 1.5px dotted rgba(255, 255, 255, .95); pointer-events: none; z-index: 1; }
+.part-label {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 12px;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+
 /* --- 바운딩 박스 (색 = 소속 군집 대응단계) --- */
 .bbox { position: absolute; border: 2px solid var(--c); cursor: pointer; transition: box-shadow .15s, border-width .1s; }
 .bbox.unknown { border-style: dashed; --c: var(--purple) !important; }  /* 미확인은 보라 점선 */
@@ -167,6 +192,7 @@
 .leg-swatch { display: inline-block; width: 16px; height: 0; border-top: 2px solid #fff; margin-right: 6px; vertical-align: middle; }
 .leg-swatch.dashed { border-top-style: dashed; }
 .leg-swatch.purple { border-top-color: var(--purple); }
+.leg-swatch.dotted { border-top-style: dotted; }
 
 /* --- 재생바 (실제 영상 연결 전 모양만) --- */
 .player { display: flex; align-items: center; gap: 16px; padding: 6px 16px; }
@@ -240,6 +266,13 @@
 .badge.stage4 { background: var(--stage4-soft); color: var(--stage4); }
 .badge.known { background: var(--stage4-soft); color: var(--stage4); }
 .badge.unknown { background: var(--purple-soft); color: var(--purple); }
+.badge.variant { background: var(--chip-bg); color: var(--chip-text); }   /* 계열만 확정 (기종 미정) */
+
+/* 랭킹 표 기종 칸 앞 판정 상태 (색은 상세 패널 배지와 같음) */
+.st-badge { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.st-known { background: var(--stage4-soft); color: var(--stage4); }
+.st-variant { background: var(--chip-bg); color: var(--chip-text); }
+.st-unknown { background: var(--purple-soft); color: var(--purple); }
 .muted { color: var(--muted); font-size: 13px; }
 
 /* ===== 오른쪽 패널 묶음 ===== */
@@ -313,7 +346,14 @@
 .stat-value { width: 78px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #pb-reasons { margin-bottom: 10px; }
 #pb-info { margin: 0 0 12px; }
-#pb-dict-link { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pb-actions { display: flex; gap: 8px; }
+.pb-actions .btn { flex: 1; min-width: 0; }
+.pb-actions .btn[hidden] { display: none; }
+#pb-dict-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+.pb-crop { margin: 10px 0 0; display: flex; gap: 10px; align-items: center; }
+.pb-crop[hidden] { display: none; }
+.pb-crop img { height: 96px; max-width: 55%; object-fit: contain; border-radius: 6px; background: var(--scope); }
+.pb-crop figcaption { font-size: 12px; color: var(--muted); }
 
 /* --- (C) 미니맵 --- */
 .panel-c { flex: 1; min-height: 220px; margin: 14px 18px 18px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; position: relative; }

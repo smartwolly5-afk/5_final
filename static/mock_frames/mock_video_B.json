@@ -1,0 +1,132 @@
+{
+ "source": {
+  "video": "mock_video_B.mp4",
+  "captured_at": "2026-10-18",
+  "source": "MOCK",
+  "observer": {
+   "lat": 48.6,
+   "lon": 38.0,
+   "heading_deg": 90
+  },
+  "frame_size": {
+   "w": 1920,
+   "h": 1080
+  }
+ },
+ "frames": [
+  {
+   "frame_idx": 120,
+   "t_sec": 4.0,
+   "image_path": "mock_frames/mock_video_B_000120.jpg",
+   "detections": [
+    {
+     "tracking_id": "Tank-11",
+     "category": "전차",
+     "det_confidence": 0.85,
+     "bbox_px": {
+      "x": 198,
+      "y": 578,
+      "w": 403,
+      "h": 261
+     },
+     "cluster_id": "C-1",
+     "parts": [],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0222",
+        "family": "T-72",
+        "score": 0.91
+       },
+       {
+        "label": "TANK_0221",
+        "family": "T-72",
+        "score": 0.04
+       }
+      ],
+      "embedding": [
+       0.2079,
+       -0.2527,
+       0.1084,
+       -0.2095,
+       0.2408,
+       -0.3017,
+       -0.1231,
+       -0.1286,
+       -0.451,
+       0.1904,
+       -0.3055,
+       -0.2413,
+       -0.1322,
+       0.1587,
+       -0.2141,
+       0.4205
+      ]
+     },
+     "_mock_image": "TANK_0222"
+    },
+    {
+     "tracking_id": "UNK-007",
+     "category": "미확인",
+     "det_confidence": 0.88,
+     "bbox_px": {
+      "x": 931,
+      "y": 537,
+      "w": 537,
+      "h": 255
+     },
+     "cluster_id": "C-1",
+     "parts": [
+      {
+       "cls": "cope_cage",
+       "conf": 0.63,
+       "bbox_px": {
+        "x": 1049,
+        "y": 506,
+        "w": 268,
+        "h": 102
+       }
+      }
+     ],
+     "classification": {
+      "model": "dino-mock",
+      "level": "tank_id",
+      "top_k": [
+       {
+        "label": "TANK_0226",
+        "family": "T-80",
+        "score": 0.24
+       },
+       {
+        "label": "TANK_0231",
+        "family": "T-90",
+        "score": 0.21
+       }
+      ],
+      "embedding": [
+       -0.036,
+       -0.3341,
+       0.2394,
+       0.0805,
+       0.0777,
+       -0.3044,
+       -0.1629,
+       -0.182,
+       -0.055,
+       0.248,
+       0.4653,
+       -0.3305,
+       0.4751,
+       -0.2182,
+       0.0135,
+       0.0341
+      ]
+     },
+     "_mock_image": "TANK_0194"
+    }
+   ]
+  }
+ ]
+}

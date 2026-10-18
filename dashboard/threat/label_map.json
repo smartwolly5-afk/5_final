@@ -1,0 +1,41 @@
+{
+ "_note": "DINO 분류 라벨 → 사전 tank_id 또는 family_name. 여기 없는 라벨은 Unknown 으로 처리하고 경고 로그를 남긴다. 계열(family)은 이 파일이 아니라 사전 DB 에서 조회한다. 모델 팀이 실제 클래스 목록을 주면 교체",
+ "labels": {
+  "TANK_0194": {
+   "tank_id": "TANK_0194"
+  },
+  "TANK_0216": {
+   "tank_id": "TANK_0216"
+  },
+  "TANK_0220": {
+   "tank_id": "TANK_0220"
+  },
+  "TANK_0221": {
+   "tank_id": "TANK_0221"
+  },
+  "TANK_0222": {
+   "tank_id": "TANK_0222"
+  },
+  "TANK_0226": {
+   "tank_id": "TANK_0226"
+  },
+  "TANK_0230": {
+   "tank_id": "TANK_0230"
+  },
+  "TANK_0231": {
+   "tank_id": "TANK_0231"
+  },
+  "T-72": {
+   "family": "T-72"
+  },
+  "T-80": {
+   "family": "T-80"
+  },
+  "T-90": {
+   "family": "T-90"
+  },
+  "T-14 Armata": {
+   "family": "T-14 Armata"
+  }
+ }
+}

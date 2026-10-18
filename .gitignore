@@ -5,3 +5,7 @@ venv/
 ~$*
 *.sqlite3
 .pytest_cache/
+
+# 분석 때 생기는 crop (static/mock_frames 원본은 저장소에 둠)
+static/unknown_crops/
+static/track_crops/

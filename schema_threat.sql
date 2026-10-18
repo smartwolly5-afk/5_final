@@ -96,3 +96,64 @@ CREATE TABLE IF NOT EXISTS commander_override (
     level_after   TINYINT,
     created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ───────── Unknown 레지스트리 (dashboard/unknown_registry.py) ─────────
+-- 미확인 그룹: 같은 미확인 '기종'으로 보이는 표적 묶음 (같은 '개체'가 아님). 영상이 달라도 임베딩이 비슷하면 한 그룹
+CREATE TABLE IF NOT EXISTS unknown_group (
+    group_id           VARCHAR(32)  NOT NULL PRIMARY KEY,   -- UNK-G0001
+    status             VARCHAR(16)  NOT NULL DEFAULT 'open', -- open | confirmed | merged | dismissed
+    family_guess       VARCHAR(100),
+    type_group         VARCHAR(16),
+    centroid           TEXT,                                -- 평균 임베딩 (JSON 리스트)
+    n_tracks           INT DEFAULT 0,                       -- 고유 트랙 수 (프레임 수 아님)
+    n_videos           INT DEFAULT 0,                       -- 고유 영상 수
+    max_threat         DOUBLE,
+    threat_source      VARCHAR(64),                         -- 위협도 근거 문장 (계열·유형 상위값 등)
+    has_cope_cage      TINYINT DEFAULT 0,
+    commander_seen     TINYINT DEFAULT 0,
+    priority           DOUBLE,                              -- 순위 점수 (저장 시점 값, 목록은 다시 계산)
+    review_candidates  TEXT,                                -- 병합 후보 [{"group_id", "similarity"}] (GROUP_SIM_REVIEW 이상)
+    confirmed_tank_id  VARCHAR(32),
+    merged_into        VARCHAR(32),
+    first_seen         DATETIME,
+    last_seen          DATETIME,
+    updated_at         DATETIME
+);
+
+-- 출현 기록: 트랙 1개 = 1행. 같은 영상을 다시 분석해도 (video, tracking_id) 로 한 행만 남는다
+CREATE TABLE IF NOT EXISTS unknown_sighting (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id     VARCHAR(32),
+    video        VARCHAR(255),
+    tracking_id  VARCHAR(64),
+    cluster_id   VARCHAR(64),
+    similarity   DOUBLE,                                    -- 들어갈 때 그룹 centroid 와의 유사도 (새 그룹이면 NULL)
+    top_k_json   TEXT,
+    embedding    TEXT,
+    threat       DOUBLE,
+    lat          DOUBLE,
+    lon          DOUBLE,
+    captured_at  DATETIME,
+    created_at   DATETIME,
+    UNIQUE (video, tracking_id)
+);
+
+CREATE TABLE IF NOT EXISTS unknown_crop (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sighting_id  BIGINT,
+    group_id     VARCHAR(32),
+    path         VARCHAR(255),                              -- static 기준 경로 (unknown_crops/<group>/<video>_<track>_<frame>.jpg)
+    quality      DOUBLE,
+    frame_idx    INT,
+    created_at   DATETIME
+);
+
+-- 분석관 조치 이력 (확정·병합·분리·기각)
+CREATE TABLE IF NOT EXISTS unknown_action (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id    VARCHAR(32),
+    actor       VARCHAR(64),
+    action      VARCHAR(16),
+    detail      TEXT,
+    created_at  DATETIME
+);

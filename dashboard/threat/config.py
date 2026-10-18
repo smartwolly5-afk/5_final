@@ -52,3 +52,40 @@ LEVELS = {1: "즉시 보고", 2: "우선 감시", 3: "지속 감시", 4: "관심
 # ───────────────────────── 위치 추정 (mock) ─────────────────────────
 CAMERA_FOV_DEG = 60  # 카메라 가로 시야각(도). bbox 가로 위치 → 방위 계산에 사용
 DISTANCE_K = 2000    # 거리(m) ≈ DISTANCE_K × 10 / bbox 높이(%). 높이 10% 이면 2km
+
+# ═════════════════════════ 탐지 모델 연동 (v2 입력, contract.md) ═════════════════════════
+# ───────────── 부품 → 전차 연결, 트랙 집계 (track.py) ─────────────
+PART_CONF_MIN = 0.5          # 이 신뢰도 이상인 부품만 센다. TODO: 근거 (YOLO 검증셋 PR 곡선으로 정하기)
+PART_IOA_MIN = 0.5           # 부품 면적 중 전차 bbox 와 겹치는 비율이 이 이상이면 그 전차 부품. TODO: 근거
+COMMANDER_RATIO = 0.3        # 안테나가 보인 프레임 비율이 이 이상이고
+COMMANDER_MIN_FRAMES = 3     # 그런 프레임이 이 장수 이상이면 지휘전차 (1~2프레임 오탐 방지). TODO: 근거
+COPE_CAGE_RATIO = 0.3        # cope cage 도 같은 규칙. TODO: 근거
+COPE_CAGE_MIN_FRAMES = 3
+EMB_TOP_N = 5                # 트랙 임베딩 = 품질 상위 N 프레임 임베딩의 평균 (재정규화)
+EDGE_MARGIN_PX = 8           # 화면 경계에서 이 px 안쪽까지 붙은 bbox 는 잘린 것으로 보고 crop 후보에서 뺀다
+CROP_MIN_PX = 48             # bbox 짧은 변이 이보다 작으면 crop 후보에서 뺀다 (분석관이 알아볼 수 없음)
+CROP_KEEP = 3                # 트랙당 저장하는 crop 장수
+CROP_PAD = 0.10              # crop 할 때 bbox 각 변에 더하는 여백 (bbox 폭·높이의 10%)
+
+# ───────────── Known / Known_Variant / Unknown 판정 (judge.py) ─────────────
+KNOWN_SCORE = 0.6            # top-1 점수가 이 이상이고
+KNOWN_MARGIN = 0.2           # top-1 과 top-2 차이가 이 이상이면 Known. TODO: 근거 (DINO 검증셋 보정)
+FAMILY_SCORE = 0.6           # 같은 계열 top_k 점수 합이 이 이상이면 Known_Variant (계열만 확정). TODO: 근거
+FAMILY_MIN_N = 3             # 계열 표본이 이보다 적으면 계열 상위25% 대신 유형(type_group) 값을 쓴다
+DEFAULT_TYPE_GROUP = "주력전차"  # 계열도 유형도 모를 때 쓰는 유형
+THREAT_PERCENTILE = 75       # 미확인·변형에 주는 위협도 = 계열(또는 유형) 안 상위 25% 값
+
+# ───────────── cope cage 방호 보너스 ─────────────
+# 상부 공격(드론·탑어택 ATGM)에 대한 부분 방호. TODO: 정성 가중치 담당 설문으로 확정 예정
+COPE_CAGE_PROTECTION_MULT = 1.10
+
+# ───────────── Unknown 레지스트리 (unknown_registry.py) ─────────────
+GROUP_SIM_MIN = 0.85         # 그룹 centroid 와 코사인 유사도가 이 이상이면 같은 그룹. TODO: 실제 임베딩으로 보정
+GROUP_SIM_REVIEW = 0.75      # 이 이상 GROUP_SIM_MIN 미만이면 새 그룹 + 병합 후보로 기록 (분석관 검토)
+PRIORITY_FREQ_K = 0.5        # 순위 점수에서 트랙 수 log 항의 비중. TODO: 근거
+PRIORITY_VIDEO_K = 0.5       # 영상 1개 더 나올 때마다 늘어나는 비중. TODO: 근거
+RECENT_DAYS = 7              # 최근 이 일수 안에 나왔으면
+RECENT_BOOST = 1.2           # 순위 점수 × 이 값. TODO: 근거
+UNKNOWN_RANK_MIN_THREAT = 40 # 위협도가 이 미만인 그룹은 저장만 하고 순위 목록에서 뺀다 (THREAT_GRADES '보통' 하한)
+UNKNOWN_RANK_TOP = 20        # 순위 목록 기본 개수
+GROUP_CROP_MAX = 12          # 그룹당 유지하는 crop 장수 (품질 상위)

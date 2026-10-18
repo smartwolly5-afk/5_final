@@ -9,6 +9,9 @@ const STAGE_SHORT = { 1: "1단계", 2: "2단계", 3: "3단계", 4: "4단계" }; 
 const GRADE_CLASS = { "매우 높음": "g1", "높음": "g2", "보통": "g3", "낮음": "g4" };                                // 전차 위협도 단계 → CSS 색 클래스
 const STAT_LABEL = { firepower: "화력", mobility: "기동력", protection: "방호력" };                                  // 상세 막대 이름
 const BAR_MAX = 150;                                                                                              // 상세 막대 100% = 기준전차의 1.5배
+const STATUS = {                                                                                                  // 판정 상태 → 표시 이름·배지 클래스
+    Known: ["Known", "known"], Known_Variant: ["계열 확정", "variant"], Unknown: ["미확인", "unknown"] };
+const PART_LABEL = { antenna: "안테나", cope_cage: "cope cage" };                                                  // 부품 이름
 
 /* ===== 화면 상태 ===== */
 let data = null;              // 마지막 API 응답 (AnalysisResult — threat/pipeline.py 머리말 참고)
@@ -25,7 +28,7 @@ const now = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.g
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));  // HTML 이스케이프 (API 값은 외부 입력)
 const aiStage = () => (data ? data.alert.level : 4);                                   // AI 권고 단계 (가장 심각한 군집)
 const effectiveStage = () => (commanderStage != null ? commanderStage : aiStage());    // 화면에 쓰는 단계 (지휘관 조정 우선)
-const modelName = (t) => t.model || "미확인";                                          // 기종명 없으면 '미확인'
+const modelName = (t) => t.model || t.unknown_group_id || "미확인";                    // 기종명 없으면 미확인 그룹 ID, 그것도 없으면 '미확인'
 const stageColor = (lv) => getComputedStyle(document.documentElement).getPropertyValue(`--stage${lv}`).trim();  // CSS 변수 색 (지도용)
 
 /* ===== 시작 ===== */
@@ -45,6 +48,12 @@ async function init() {                                                         
     $("tp-cluster").addEventListener("change", syncTacticSelect);                                      // 군집 바꾸면 현재 전술 표시
     $("tp-apply").addEventListener("click", applyTactic);                                              // 전술 적용
     $("alert-banner-close").addEventListener("click", hideBanner);                                     // 배너 닫기
+    $("pb-commander").addEventListener("click", toggleCommander);                                      // 지휘전차 지정·해제
+    $("video-tabs").addEventListener("click", (e) => {                                                 // 영상 A/B 탭
+        const v = e.target.dataset.video;
+        if (v && v !== data.video) fetchResult(`/api/threats?video=${encodeURIComponent(v)}`, {});
+    });
+    new ResizeObserver(fitFrame).observe($("video"));                                                  // 영상 칸 크기가 바뀌면 프레임 크기 다시 맞춤
     initMap();                                                                                         // 지도 준비
 
     const ok = await fetchResult("/api/threats", {}, true);                                            // 마지막 결과 가져오기
@@ -78,6 +87,11 @@ function load(result) {                                                  // 새 
     targets = result.targets;                                            // 표적 목록 (서버가 랭킹 순서로 정렬해 보냄)
     commanderStage = null;                                               // 새 계산이 오면 지휘관 단계 조정 해제
     $("src-video").textContent = result.source.video || "";              // 파일 이름
+    renderTabs();                                                        // 영상 A/B 탭
+    const img = $("frame-img");                                          // 원본 프레임 (v2 입력만)
+    img.hidden = !result.source.frame_image;
+    if (result.source.frame_image) img.src = `/static/${result.source.frame_image}`;
+    fitFrame();
     $("video-meta").textContent = `${result.source.captured_at || ""} (${result.source.source || ""})`;  // 촬영일 (출처)
     if (!targets.some((t) => t.tracking_id === selectedId)) hasManualSelection = false;  // 선택 표적이 사라지면 자동 선택으로
     render();                                                            // 표·박스·패널·지도 전부 다시 그림
@@ -98,10 +112,34 @@ function render() {                                                      // 화�
     else if (selectedId) selectTarget(selectedId, { auto: true });      // 기존 선택 유지
 }
 
+/* ===== 영상 프레임·탭 ===== */
+function renderTabs() {                                                  // 분석한 영상이 2개 이상이면 탭으로 전환
+    const videos = data.videos || [];
+    $("video-tabs").hidden = videos.length < 2;
+    $("video-tabs").innerHTML = videos.map((v) => `<button type="button" role="tab" data-video="${esc(v)}"
+        aria-selected="${v === data.video}">${esc(v.replace(/\.[^.]+$/, ""))}</button>`).join("");  // 확장자는 빼고 표시
+}
+
+function fitFrame() {                                                    // 프레임을 원본 비율 그대로 영상 칸 안에 최대 크기로 (박스 % 좌표가 사진과 맞게)
+    const frame = $("frame"), size = data && data.source.frame_image && data.source.frame_size;
+    if (!size) { frame.style.width = frame.style.height = ""; return; }  // 이미지가 없으면(v1 mock) 칸 전체
+    const box = $("video").getBoundingClientRect();
+    const k = Math.min(box.width / size.w, box.height / size.h);         // 가로·세로 중 먼저 닿는 쪽에 맞춤
+    frame.style.width = `${size.w * k}px`;
+    frame.style.height = `${size.h * k}px`;
+}
+
 /* ===== 영상 위 바운딩 박스 (색 = 소속 군집 대응단계) ===== */
 function renderBoxes() {                                                 // 표적마다 영상 위에 네모 박스를 만듦
-    const video = $("video");                                            // 박스를 넣을 영상 영역
-    video.querySelectorAll(".bbox").forEach((b) => b.remove());          // 이전 박스 지우기
+    const video = $("frame");                                            // 박스를 넣을 프레임 영역
+    video.querySelectorAll(".bbox, .part").forEach((b) => b.remove());   // 이전 박스·부품 지우기
+    targets.forEach((t) => (t.parts || []).forEach((p) => {              // 부품 표시: 흰 점선 작은 박스 + 이름
+        const el = document.createElement("div");
+        el.className = "part";
+        Object.assign(el.style, { left: `${p.bbox.x}%`, top: `${p.bbox.y}%`, width: `${p.bbox.w}%`, height: `${p.bbox.h}%` });
+        el.innerHTML = `<span class="part-label">${esc(PART_LABEL[p.cls] || p.cls)} ${Math.round(p.conf * 100)}%</span>`;
+        video.appendChild(el);
+    }));
     targets.forEach((t) => {                                             // 표적마다
         const box = document.createElement("div");                       // 박스 요소 새로 만들기
         box.className = `bbox stage${t.level} ${t.is_unknown ? "unknown" : "known"}`;  // 단계 색 + 미확인 점선
@@ -158,6 +196,10 @@ function threatCell(t) {                                                 // '95.
     if (t.threat == null) return `<span class="grade gx" title="제원이 없어 위협도를 계산할 수 없음">산출 불가</span>`;  // 점수 없음 (미확인)
     return `<span class="threat-cell"><b>${t.threat.toFixed(1)}</b><span class="grade ${GRADE_CLASS[t.grade]}">${esc(t.grade)}</span></span>`;  // 점수(소수 1자리) + 색 배지
 }
+function statusBadge(t) {                                                // 판정 상태 작은 배지 (Known / 계열 확정 / 미확인)
+    const [label, cls] = STATUS[t.status] || STATUS.Unknown;
+    return `<span class="st-badge st-${cls}">${label}</span>`;
+}
 function renderTable() {                                                 // 랭킹 표 행 만들기. 순위 있는 표적 목록을 돌려줌
     const ranked = targets.filter((t) => t.rank != null);                // 순위 있는 표적 (전차·미확인)
     $("target-count").textContent = `(${ranked.length})`;                // 제목 옆 '(9)'
@@ -172,7 +214,7 @@ function renderTable() {                                                 // 랭�
         <tr data-id="${esc(t.tracking_id)}">
             <td class="rank-num">${t.rank}</td>
             <td>${esc(t.tracking_id)}</td>
-            <td>${esc(modelName(t))}</td>
+            <td>${statusBadge(t)}${esc(modelName(t))}</td>
             <td>${threatCell(t)}</td>
             <td class="col-left tag-td"><div class="tag-cell">${t.tags.map((r) => `<span class="chip">${esc(r)}</span>`).join("")}</div></td>
             <td>${(t.confidence || 0).toFixed(2)}</td>
@@ -284,11 +326,24 @@ function hideBanner() {                                                  // 배�
 /* ===== (B) 선택 표적 상세 ===== */
 function renderPanelB(t) {                                               // 오른쪽 가운데 패널: 고른 표적 1개의 상세
     $("pb-title").textContent = `${t.tracking_id} · ${modelName(t)}`;    // 'Tank-03 · T-90M'
-    $("pb-status-badge").className = `badge ${t.is_unknown ? "unknown" : "known"}`;  // 미확인이면 보라, 아니면 파랑
-    $("pb-status-badge").textContent = t.is_unknown ? "미확인·미검토" : "Known";      // 배지 글자
+    const [stLabel, stCls] = STATUS[t.status] || STATUS.Unknown;          // 판정 상태
+    $("pb-status-badge").className = `badge ${stCls}`;                    // Known 파랑 · 계열 확정 회색 · 미확인 보라
+    $("pb-status-badge").textContent = stLabel;
+    $("pb-crop").hidden = !t.crop_url;                                    // 대표 crop (원본 프레임에서 잘라 저장한 것)
+    if (t.crop_url) {
+        $("pb-crop-img").src = t.crop_url;
+        $("pb-crop-img").alt = `${t.tracking_id} 대표 crop`;
+        $("pb-crop-cap").textContent = [t.unknown_group_id && `미확인 그룹 ${t.unknown_group_id}`,
+            t.n_frames > 1 && `${t.n_frames}프레임 추적`, t.threat_source].filter(Boolean).join(" · ");
+    }
+    const ev = t.commander_evidence;                                      // 지휘전차 근거 (v2 만)
+    $("pb-commander").hidden = !ev || t.category !== "전차";
+    $("pb-commander").textContent = t.is_commander ? "지휘전차 해제" : "지휘전차로 지정";
     $("pb-conf").innerHTML = `신뢰도 <b>${Math.round((t.confidence || 0) * 100)}%</b>`;  // 탐지 신뢰도
 
-    $("pb-score").innerHTML = `${t.threat ?? "—"}<small> 위협도</small>`;    // 전차 위협도 점수
+    const bonus = t.threat_before_bonus != null && t.threat_before_bonus !== t.threat  // cope cage 보정이 있으면 보정 전 값도
+        ? ` · 보정 전 ${t.threat_before_bonus}` : "";
+    $("pb-score").innerHTML = `${t.threat ?? "—"}<small> 위협도${bonus}</small>`;    // 전차 위협도 점수
     $("pb-grade").innerHTML = t.threat == null ? "" : `<span class="grade ${GRADE_CLASS[t.grade]}">${esc(t.grade)}</span>`;  // 위협도 단계 배지 (점수 없으면 비움)
     $("pb-stage-badge").className = `badge stage${t.level}`;             // 소속 군집 단계 색
     $("pb-stage-badge").textContent = `${t.cluster_id} ${STAGE_SHORT[t.level]}`;  // 소속 군집 대응단계
@@ -302,7 +357,9 @@ function renderPanelB(t) {                                               // 오�
             <span class="stat-track"><span class="stat-fill" style="width:${Math.min(t.scores[k] / BAR_MAX, 1) * 100}%"></span></span>
             <span class="stat-value">${t.scores[k]} × ${t.weights[k]}</span>
         </div>`).join("")                                                   // 점수 × 적용된 전술 가중치
-        : `<p class="muted">제원 없음 — 위협도 산출 불가 (${esc(t.category)})</p>`;  // 점수 없음
+        : t.threat != null                                                  // 기종 미정(변형·미확인): 대체 위협도 근거
+            ? `<p class="muted">기종 제원 대신 ${esc(t.threat_source)} 값을 씀</p>`
+            : `<p class="muted">제원 없음 — 위협도 산출 불가 (${esc(t.category)})</p>`;  // 점수 없음
 
     const tags = t.tags.filter((r) => !r.endsWith(" 소속"));               // 'C-1 소속'은 바로 위 단계 배지와 중복
     $("pb-reasons").innerHTML = tags.length                                 // 태그가 있으면
@@ -313,6 +370,16 @@ function renderPanelB(t) {                                               // 오�
     $("pb-info").textContent = `추정 거리 ${(p.distance_m / 1000).toFixed(1)} km · 방위 ${p.bearing_deg}° · 전술 ${t.tactic_name}`;  // m → km 변환해 표시
     $("pb-dict-link").style.display = t.model ? "" : "none";                // 기종 없으면 사전 링크 숨김 (#pb-dict-link 의 display 규칙이 hidden 보다 우선)
     $("pb-dict-link").href = `/dictionary?q=${encodeURIComponent(t.model || "")}`;  // 사전 페이지에서 기종명으로 검색
+}
+
+async function toggleCommander() {                                          // 지휘전차 지정·해제 → 서버 재계산
+    const t = targets.find((x) => x.tracking_id === selectedId);
+    if (!t || !t.commander_evidence) return;
+    const want = !t.is_commander;                                           // 바꿀 값
+    const value = want === t.commander_evidence.on ? null : want;           // 탐지 규칙과 같아지면 지정 해제 (null = 자동)
+    await fetchResult(`/api/threats/${encodeURIComponent(t.tracking_id)}/commander`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_commander: value }),
+    });
 }
 
 /* ===== (C) 미니맵: 관측 지점 기준 추정 위치 ===== */

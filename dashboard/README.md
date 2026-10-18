@@ -113,3 +113,37 @@ mock_detections.json ─(또는 POST 본문)─▶ __init__.py analyze()
 python app.py                                   # http://127.0.0.1:5000
 python -m pytest tests dashboard/tests -q       # 전체 테스트
 ```
+
+## 탐지 모델 연동 (v2) · Unknown 레지스트리
+
+모델 출력 형식과 가정은 `threat/contract.md` 에 있습니다. `POST /api/analyze` 를 본문 없이 부르면 `static/mock_frames/` 샘플 영상 A → B 를 분석합니다.
+
+| 파일 | 역할 |
+|---|---|
+| `threat/track.py` | 프레임 → 트랙 집계 (안테나·cope cage 비율 규칙, top_k 평균, 임베딩 평균, 대표 crop 선정) |
+| `threat/judge.py` | Known / Known_Variant / Unknown 판정, 사전 DB 위협도, cope cage 보정 |
+| `threat/dictdb.py` | 사전 위협도(`tank_threat`, `type_threat_summary`) 조회. DB 가 없으면 `demo_seed.json` |
+| `threat/label_map.json` | 분류 라벨 → tank_id / family |
+| `media.py` | 원본 프레임에서 crop 저장 (`static/track_crops/`, `static/unknown_crops/`) |
+| `unknown_registry.py` | 미확인 그룹 매칭·집계·순위 (테이블은 `schema_threat.sql` 의 `unknown_*`) |
+| `templates/dashboard/unknowns.html`, `static/unknowns.js` | 분석관 화면 `/unknowns` |
+| `../static/mock_frames/make_frames.py` | 1장 샘플 → 영상당 5프레임 확장 (Tank-11 안테나 오탐 1프레임 포함) |
+
+**실행 (PowerShell)**
+
+```powershell
+pip install -r requirements.txt
+python app.py                     # http://127.0.0.1:5000/ → 영상 A/B 탭, /unknowns → 미확인 그룹
+# 사전 DB 없이 데모:  $env:TANKLAB_DEMO = "1"; python app.py
+python -m pytest dashboard/tests -q
+```
+
+**샘플에서 나오는 결과**
+
+| 영상 | 표적 | 판정 | 위협도 근거 |
+|---|---|---|---|
+| A | Tank-01 | Known (T-90), 안테나 5/5프레임 → 지휘전차 | 사전 T-90, 지휘통제 가중치 |
+| A | Tank-02 | Known_Variant (T-72 계열) + cope cage | T-72 계열 상위25% + 방호 ×1.10 |
+| A | UNK-001 | Unknown → 새 그룹 UNK-G0001 | 주력전차 상위25% (T-90 계열 표본 2 < 3) |
+| B | Tank-11 | Known (T-80), 안테나 1/5프레임 → 지휘전차 아님 | 사전 T-80 |
+| B | UNK-007 | Unknown → UNK-G0001 (유사도 ≈ 0.96), n_videos = 2 | T-80 계열 상위25% + 방호 ×1.10 |

@@ -48,7 +48,9 @@ def spec_of(det):
 
 
 def is_unknown(det):
-    """미확인 표적: 분류가 '미확인'이거나, 전차인데 제원표에 없는 기종."""
+    """미확인 표적: 분류가 '미확인'이거나, 전차인데 제원표에 없는 기종. v2 입력은 판정 결과(status)를 따른다."""
+    if det.get("status"):                                    # v2: Known / Known_Variant / Unknown (judge.py)
+        return det["status"] == "Unknown"
     return det.get("category") == "미확인" or (det.get("category") == "전차" and spec_of(det) is None)
 
 
