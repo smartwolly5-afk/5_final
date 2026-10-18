@@ -4,7 +4,7 @@
 // 주의: 백틱(`) 안의 여러 줄 HTML 에는 // 주석을 넣을 수 없어서(화면에 글자로 찍힘) 그 위에 설명을 몰아 적었다
 
 /* ===== 표시용 상수 ===== */
-const STAGE_LABEL = { 1: "1단계 · 즉시 보고", 2: "2단계 · 우선 감시", 3: "3단계 · 지속 감시", 4: "4단계 · 경계" };  // 군집 대응단계 긴 이름
+const STAGE_LABEL = { 1: "1단계 · 즉시 보고", 2: "2단계 · 우선 감시", 3: "3단계 · 지속 감시", 4: "4단계 · 관심" };  // 군집 대응단계 긴 이름
 const STAGE_SHORT = { 1: "1단계", 2: "2단계", 3: "3단계", 4: "4단계" };                                           // 짧은 이름
 const GRADE_CLASS = { "매우 높음": "g1", "높음": "g2", "보통": "g3", "낮음": "g4" };                                // 전차 위협도 단계 → CSS 색 클래스
 const STAT_LABEL = { firepower: "화력", mobility: "기동력", protection: "방호력" };                                  // 상세 막대 이름
@@ -207,8 +207,11 @@ function highlight() {                                                   // 표 
 function renderPanelA() {                                                // 오른쪽 맨 위 패널
     const stage = effectiveStage();                                      // 지휘관 조정 > AI 권고
     const a = data.alert;                                                // 서버가 계산한 경보 (가장 심각한 군집 기준)
-    $("pa-stage-badge").className = `badge-lg stage${stage}`;            // 큰 배지 색 = 단계 색
-    $("pa-stage-badge").textContent = STAGE_LABEL[stage];                // '2단계 · 우선 감시'
+    document.querySelectorAll("#pa-ladder li").forEach((li) => {         // 단계 사다리: 지금 단계 칸만 칠함
+        const n = Number(li.dataset.stage);                              // 칸 번호 1~4
+        li.className = n === stage ? `on stage${n}` : n === a.level && commanderStage != null ? `ai stage${n}` : "";  // 조정했으면 AI 권고 칸은 테두리
+        li.setAttribute("aria-current", n === stage ? "step" : "false"); // 화면 읽기 프로그램용 현재 단계
+    });
     $("pa-change").textContent = a.prev_level != null && a.prev_level !== a.level  // 직전 분석과 단계가 다르면
         ? `${STAGE_SHORT[a.prev_level]} → ${STAGE_SHORT[a.level]} (${now()})` : "";  // 직전 분석 대비 변화
     $("pa-override").hidden = commanderStage == null;                    // 지휘관 조정 표시
@@ -341,7 +344,7 @@ function renderMap() {                                                      // �
         const center = L.latLng(pos.reduce((s, p) => s + p[0], 0) / pos.length, pos.reduce((s, p) => s + p[1], 0) / pos.length);  // 평균 위치
         const radius = Math.max(...pos.map((p) => center.distanceTo(p))) + 120;  // 가장 먼 표적 + 여유 120m
         L.circle(center, { radius, color: stageColor(c.level), weight: 1.5, dashArray: "4 4", fillOpacity: 0.08 })  // 단계 색 점선 원
-            .bindTooltip(`${c.cluster_id} · ${STAGE_SHORT[c.level]} · ${c.echelon.name}급`).addTo(mapLayer);  // 마우스 올리면 'C-1 · 2단계 · 중대급'
+            .bindTooltip(`${esc(c.cluster_id)} · ${STAGE_SHORT[c.level]} · ${esc(c.echelon.name)}급`).addTo(mapLayer);  // 마우스 올리면 'C-1 · 2단계 · 중대급'
     });
 
     targets.forEach((t) => {                                                // 표적 마커 (색 = 군집 대응단계)

@@ -14,7 +14,10 @@
 {% endmacro %}
 
 {% macro crumbs(items) %}
+{# 뒤로가기: 사이트 안에서 왔으면 브라우저 뒤로(검색어·스크롤 유지), 아니면(주소 직접 입력) 바로 위 단계로 #}
+{% set up = (items | selectattr(1) | map(attribute=1) | list | last) if items | selectattr(1) | list else url_for('dictionary.home') %}
 <nav class="crumbs">
+    <a class="back-btn" href="{{ up }}" data-back>{{ icon('arrow-left', 14) }} 뒤로</a>
     <a href="{{ url_for('dictionary.home') }}">사전</a>
     {% for label, href in items %}
         <span class="sep">›</span>

@@ -14,7 +14,7 @@
     --accent: #df6d22;
     --accent-soft: #fdeee2;
 
-    /* 대응단계: 1=즉시 보고(적) 2=우선 감시(주황) 3=지속 감시(황) 4=경계(청) — response_level.LEVELS 와 같은 색 */
+    /* 대응단계: 1=즉시 보고(적) 2=우선 감시(주황) 3=지속 감시(황) 4=관심(청) — 국가위기경보 단계 이름·색 순서와 같음 — response_level.LEVELS 와 같은 색 */
     --stage1: #c0312a;
     --stage1-soft: #fbe2e0;
     --stage2: #d0601c;
@@ -27,6 +27,7 @@
     --purple-soft: #efe9f8;
     --chip-bg: #eceae1;
     --chip-text: #45463c;
+    --scope: #23271d;           /* 감시 화면 바탕 (어두운 올리브) */
 
     --mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     --radius: 10px;
@@ -59,16 +60,6 @@ button { font: inherit; cursor: pointer; }
 }
 .topbar-left { display: flex; align-items: center; gap: 28px; min-width: 0; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; }
-.brand-logo {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background: var(--primary);
-    color: #fff;
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-}
 .brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .brand-name { font-size: 15px; font-weight: 800; letter-spacing: .06em; }
 .brand-desc { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -124,6 +115,6 @@ button { font: inherit; cursor: pointer; }
     .nav-item { padding: 6px 8px; }
     .topbar { padding: 0 16px; }
     .topbar-left { gap: 10px; }
-    .brand-text, .clock-chip { display: none; }
+    .clock-chip { display: none; }
     .user { display: none; }
 }

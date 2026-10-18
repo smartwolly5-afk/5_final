@@ -38,18 +38,13 @@
                     </div>
                     <!-- 영상 파일 이름 + 분석 시작 (POST /api/analyze) -->
                     <div class="upload">
-                        <div class="file-chip"><span id="src-video"></span> <span class="x">&times;</span></div>
-                        <button class="btn btn-primary" id="analyze-btn" type="button">분석 시작</button>
+                        <div class="file-chip">{{ icon('box', 14) }}<span id="src-video"></span></div>
+                        <button class="btn btn-outline" id="analyze-btn" type="button">분석 시작</button>
                     </div>
                 </div>
 
                 <div class="video-card">
                     <div class="video" id="video">                      <!-- 바운딩 박스는 JS 가 이 안에 그림 -->
-                        <div class="video-tools">
-                            <button type="button">&#10148;</button>
-                            <button type="button">&#9906;</button>
-                            <button type="button">&#9974;</button>
-                        </div>
                         <div class="video-meta" id="video-meta"></div>  <!-- 촬영일 (출처) -->
                         <div class="bbox-legend">
                             <div><span class="leg-swatch solid"></span>박스 색 = 소속 군집 대응단계</div>
@@ -57,10 +52,10 @@
                         </div>
                     </div>
                     <div class="player">                                <!-- 재생바: 실제 영상 연결 전이라 모양만 -->
-                        <button class="play" type="button">&#9654;</button>
+                        <button class="play" type="button" disabled aria-label="재생" title="영상 연결 후 사용">&#9654;</button>
                         <span class="time">--:-- / --:--</span>
                         <div class="progress"><div class="progress-fill"></div></div>
-                        <button class="fullscreen" type="button">&#9974;</button>
+                        <button class="fullscreen" type="button" disabled aria-label="전체 화면" title="영상 연결 후 사용">&#9974;</button>
                     </div>
                 </div>
             </section>
@@ -96,16 +91,23 @@
             <!-- (A) 상황 대응수준 = 군집 단위 대응단계 -->
             <div class="panel" id="pa-panel">
                 <div class="pa-head">
-                    <span class="badge-lg" id="pa-stage-badge"></span>    <!-- 가장 심각한 군집의 단계 (또는 지휘관 조정값) -->
+                    <span class="pa-label">상황 대응수준</span>
                     <button class="icon-btn alert-info" type="button"
                             title="대응단계는 군집 단위. 군집점수 = 군집 내 최고 위협도 × 제대가중치(소대1·중대2·대대3) → 225/150/75 경계로 1~4단계. 미확인 표적이나 위협도 75 이상 전차가 있으면 4단계 불가">{{ icon('info', 16) }}</button>
                 </div>
+                <!-- 단계 사다리: 1~4 중 지금 위치. 칠한 칸 = 화면 단계, 테두리만 = 지휘관 조정 시 AI 권고 -->
+                <ol class="stage-ladder" id="pa-ladder" aria-label="대응단계">
+                    <li data-stage="1"><b>1</b>즉시 보고</li>
+                    <li data-stage="2"><b>2</b>우선 감시</li>
+                    <li data-stage="3"><b>3</b>지속 감시</li>
+                    <li data-stage="4"><b>4</b>관심</li>
+                </ol>
                 <p class="alert-change" id="pa-change"></p>               <!-- 직전 분석 대비 단계 변화 -->
                 <p class="alert-override" id="pa-override" hidden></p>    <!-- 지휘관이 단계 조정했을 때 -->
                 <ul class="cluster-list" id="pa-clusters"></ul>           <!-- 군집별 단계·전술·판정 근거 -->
 
                 <div class="alert-buttons">
-                    <button class="btn btn-primary" id="pa-confirm" type="button">확인</button>
+                    <button class="btn btn-outline" id="pa-confirm" type="button">확인</button>
                     <button class="btn btn-outline" id="pa-adjust" type="button">단계 조정</button>
                     <button class="btn btn-outline" id="pa-tactic" type="button">전술 선택</button>
                     <button class="btn btn-outline" id="pa-report" type="button">보고서 출력</button>
