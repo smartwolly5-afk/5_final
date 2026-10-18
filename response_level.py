@@ -199,6 +199,23 @@ def record_override(cluster_id, actor, item, before, after, level_before, level_
                  level_before, level_after, _now()))
 
 
+def history(cluster_id):
+    """그 군집의 판정·지휘관 조치 이력 (시간순). 각 항목: {"kind": "판정"|"조치", "at", ...}."""
+    import threat_db as tdb
+    tdb.ensure_schema()
+    out = [{"kind": "판정", "at": str(r["created_at"])[:19], "level": r["level"], "score": r["score"],
+            "tactic": r["tactic_no"], "id": r["id"]}
+           for r in tdb.query("SELECT id, level, score, tactic_no, created_at FROM cluster_assessment WHERE cluster_id = %s",
+                              (cluster_id,))]
+    out += [{"kind": "조치", "at": str(r["created_at"])[:19], "actor": r["actor"], "item": r["item"],
+             "before": json.loads(r["before_value"]) if r["before_value"] else None,
+             "after": json.loads(r["after_value"]) if r["after_value"] else None,
+             "level_before": r["level_before"], "level_after": r["level_after"], "id": r["id"]}
+            for r in tdb.query("SELECT id, actor, item, before_value, after_value, level_before, level_after, created_at "
+                               "FROM commander_override WHERE cluster_id = %s", (cluster_id,))]
+    return sorted(out, key=lambda e: (e["at"], e["kind"] == "조치", e["id"]))   # 같은 시각이면 기록된 순서(판정 → 조치)
+
+
 def assess_and_save(cluster, lookup=None):
     result = assess(cluster, *(lookup or load_lookup()))
     save_assessment(cluster, result)

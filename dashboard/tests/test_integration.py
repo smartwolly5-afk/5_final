@@ -121,3 +121,42 @@ def test_save_failure_keeps_analysis(monkeypatch):
 def test_cluster_key_fits_column():
     k = rl.cluster_key("v" * 300 + ".mp4", "C-12")
     assert len(k) <= 64 and k.endswith(":C-12") and k != rl.cluster_key("w" * 300 + ".mp4", "C-12")
+
+
+# ───────── 4단계: 지휘관 조치 이력 (commander_override) ─────────
+def overrides(key="mock_video_A.mp4:C-1"):
+    return tdb.query("SELECT actor, item, before_value, after_value, level_before, level_after "
+                     "FROM commander_override WHERE cluster_id = %s ORDER BY id", (key,))
+
+
+def test_tactic_commander_stage_actions_are_logged():
+    c = client()
+    c.post("/api/analyze")
+    assert c.patch("/api/clusters/C-1/tactic", json={"tactic": 3}, headers={"X-User": "대대장"}).status_code == 200
+    assert c.patch("/api/threats/Tank-01/commander", json={"is_commander": False}).status_code == 200
+    r = c.post("/api/clusters/C-1/stage", json={"stage": 1})
+    assert r.status_code == 200 and r.json["recorded"] is True and r.json["ai_level"] == 3
+    rows = overrides()
+    assert [x["item"] for x in rows] == ["tactic", "commander", "stage"]
+    assert rows[0]["actor"] == "대대장" and rows[1]["actor"] == "commander"               # X-User → 기본 "commander"
+    assert json.loads(rows[0]["after_value"]) == 3 and json.loads(rows[0]["before_value"]) is None
+    assert json.loads(rows[2]["after_value"]) == 1 and (rows[2]["level_before"], rows[2]["level_after"]) == (3, 1)
+    assert c.post("/api/clusters/C-1/stage", json={"stage": 7}).status_code == 400
+    assert c.post("/api/clusters/NOPE/stage", json={"stage": 1}).status_code == 404
+
+
+def test_stage_does_not_change_calculation():
+    c = client()
+    before = c.post("/api/analyze").json["clusters"][0]["level"]
+    c.post("/api/clusters/C-1/stage", json={"stage": 1})
+    assert c.get("/api/threats").json["clusters"][0]["level"] == before
+
+
+def test_history_endpoint_in_time_order():
+    c = client()
+    c.post("/api/analyze")
+    c.patch("/api/clusters/C-1/tactic", json={"tactic": 3})
+    h = c.get("/api/clusters/C-1/history?video=mock_video_A.mp4").json["events"]
+    assert [e["kind"] for e in h] == ["판정", "판정", "조치"]                  # 분석 판정 → 재판정 → 전술 조치 기록
+    assert h[-1]["item"] == "tactic" and h[-1]["after"] == 3
+    assert [e["kind"] for e in c.get("/api/clusters/C-1/history?video=mock_video_B.mp4").json["events"]] == ["판정"]

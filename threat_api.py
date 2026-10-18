@@ -15,9 +15,10 @@ def _body():
     return body
 
 
-def _actor():
+def _actor(default="unknown"):
+    """조치한 사람: 요청 헤더 X-User → 본문 actor → default (대시보드는 "commander"). 대시보드 라우트도 이 함수를 쓴다."""
     body = request.get_json(silent=True)
-    return request.headers.get("X-User") or (body.get("actor") if isinstance(body, dict) else None) or "unknown"
+    return request.headers.get("X-User") or (body.get("actor") if isinstance(body, dict) else None) or default
 
 
 @bp.errorhandler(ValueError)

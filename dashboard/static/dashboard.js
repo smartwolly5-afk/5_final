@@ -43,8 +43,11 @@ async function init() {                                                         
         if (!stage) return;                                                                            // 버튼 바깥 클릭은 무시
         commanderStage = Number(stage) === aiStage() ? null : Number(stage);                           // AI 권고와 같으면 조정 해제
         $("stage-pick").hidden = true;                                                                 // 고르고 나면 단계 버튼 줄 닫기
-        renderPanelA();                                                                                // 큰 배지·'지휘관 결정' 문구 다시 그림
-    });                                                                                                // (서버 호출 없음 — 화면·보고서에만 반영)
+        renderPanelA();                                                                                // 사다리·'지휘관 결정' 문구 다시 그림
+        fetch(`/api/clusters/${encodeURIComponent(data.alert.cluster_id)}/stage`, {                    // 이력에만 기록 (계산값은 그대로)
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: commanderStage }),
+        }).catch(() => {});                                                                            // 기록 실패해도 화면은 그대로
+    });
     $("tp-cluster").addEventListener("change", syncTacticSelect);                                      // 군집 바꾸면 현재 전술 표시
     $("tp-apply").addEventListener("click", applyTactic);                                              // 전술 적용
     $("alert-banner-close").addEventListener("click", hideBanner);                                     // 배너 닫기

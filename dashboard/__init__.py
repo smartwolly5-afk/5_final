@@ -25,6 +25,7 @@ from .threat import config as C      # 단계 이름 (LEVELS), 전술 가중치 
 from .threat.core import TACTIC_NAMES  # 전술 번호 → 이름
 from .threat.pipeline import MOCK_V2   # 기본 샘플 (영상 A, B)
 from .threat.adapter import rl         # 판정 엔진·기록 (저장소 루트 response_level.py)
+from threat_api import _actor          # 조치한 사람 (X-User 헤더 → 본문 actor → 기본값)
 
 bp = Blueprint("dashboard", __name__,
                template_folder="templates",            # dashboard/templates/dashboard/*.html
@@ -37,7 +38,8 @@ log = logging.getLogger(__name__)
 #   STATE 는 화면 속도를 위한 캐시일 뿐이라 서버를 다시 켜면 사라진다.
 # ponytail: 프로세스 메모리 — 서버 재시작 시 사라지고 사용자 간 공유됨. 다중 사용자면 DB(cluster_assessment) 저장으로.
 #   (Unknown 레지스트리는 DB 라 재시작해도 남는다)
-STATE = {"runs": {},       # 영상 이름 → {"payload", "prev", "result", "overrides": {군집: 전술}, "commanders": {표적: bool}}
+STATE = {"runs": {},       # 영상 이름 → {"payload", "prev", "result", "overrides": {군집: 전술}, "commanders": {표적: bool},
+                           #              "core": {핵심표적 tracking_id}, "stages": {군집: 지휘관이 화면에서 조정한 단계}}
          "current": None}  # 화면에 보이는 영상 이름
 
 
@@ -84,13 +86,29 @@ def _attach(result, new):
     return result
 
 
-def _reanalyze(run, overrides=None, commanders=None):
-    """같은 입력을 지정 전술·지휘전차만 바꿔 다시 계산 (실패하면 예외, run 은 그대로)."""
+def _reanalyze(run, overrides=None, commanders=None, core=None):
+    """같은 입력을 지정 전술·지휘전차·핵심표적만 바꿔 다시 계산 (실패하면 예외, run 은 그대로)."""
     ov = run["overrides"] if overrides is None else overrides
     cm = run["commanders"] if commanders is None else commanders
-    result = _attach(threat.analyze(run["payload"], run["prev"], ov, cm), new=False)
-    run.update(overrides=ov, commanders=cm, result=result)
+    co = run["core"] if core is None else core
+    result = _attach(threat.analyze(run["payload"], run["prev"], ov, cm, co), new=False)
+    run.update(overrides=ov, commanders=cm, core=co, result=result)
     return result
+
+
+def _level(result, cluster_id):
+    return next((c["level"] for c in result["clusters"] if c["cluster_id"] == cluster_id), None)
+
+
+def _log_action(video, cluster_id, item, before, after, level_before, level_after):
+    """지휘관 조치 1건을 commander_override 에 기록. DB 가 없어도 화면 동작은 계속 (False 반환)."""
+    try:
+        rl.record_override(rl.cluster_key(video, cluster_id), _actor("commander"), item, before, after,
+                           level_before, level_after)
+        return True
+    except Exception as e:
+        log.warning("지휘관 조치 기록 실패 (%s %s %s): %s", video, cluster_id, item, e)
+        return False
 
 
 def _respond(result):
@@ -122,7 +140,7 @@ def analyze():
         return _bad(e, 400)                                             # 입력 형식 오류
     for p, prev, result in results:
         STATE["runs"][_video(p)] = {"payload": p, "prev": prev, "result": _attach(result, new=True),
-                                    "overrides": {}, "commanders": {}}
+                                    "overrides": {}, "commanders": {}, "core": set(), "stages": {}}
     STATE["current"] = _video(payloads[0])                              # 화면은 첫 영상부터
     return _respond(STATE["runs"][STATE["current"]]["result"])
 
@@ -158,6 +176,7 @@ def set_tactic(cluster_id):
     if run is None:
         return _bad("분석 결과 없음", 404)
     tactic = (request.get_json(silent=True) or {}).get("tactic")       # 1~10 또는 None
+    run_before = run["overrides"]                                       # 조치 기록용 (지정 전 값)
     overrides = dict(run["overrides"])                                  # 실패하면 원래 값 유지하도록 복사본에 적용
     if tactic is None:
         overrides.pop(cluster_id, None)                                 # 지정 해제
@@ -165,12 +184,16 @@ def set_tactic(cluster_id):
         overrides[cluster_id] = tactic
     else:
         return _bad("tactic 은 1~10 정수 또는 null", 400)
+    old = run["result"]
     try:
-        return _respond(_reanalyze(run, overrides=overrides))
+        new = _reanalyze(run, overrides=overrides)
     except LookupError as e:
         return _bad(e, 404)                                             # 없는 군집
     except ValueError as e:
         return _bad(e, 400)                                             # 가중치 없는 전술 번호
+    _log_action(_video(new), cluster_id, "tactic", run_before.get(cluster_id), tactic,
+                _level(old, cluster_id), _level(new, cluster_id))
+    return _respond(new)
 
 
 @bp.patch("/api/threats/<tracking_id>/commander")
@@ -181,7 +204,8 @@ def set_commander(tracking_id):
         return _bad("분석 결과 없음", 404)
     if not TR.is_v2(run["payload"]):
         return _bad("지휘전차 수정은 프레임 단위(v2) 입력에서만", 400)
-    if not any(t["tracking_id"] == tracking_id for t in run["result"]["targets"]):
+    old_t = next((t for t in run["result"]["targets"] if t["tracking_id"] == tracking_id), None)
+    if old_t is None:
         return _bad(f"표적 없음: {tracking_id}", 404)
     body = request.get_json(silent=True)
     value = body.get("is_commander", "없음") if isinstance(body, dict) else "없음"
@@ -192,7 +216,50 @@ def set_commander(tracking_id):
         commanders.pop(tracking_id, None)
     else:
         commanders[tracking_id] = value
-    return _respond(_reanalyze(run, commanders=commanders))
+    old = run["result"]
+    new = _reanalyze(run, commanders=commanders)
+    new_t = next(t for t in new["targets"] if t["tracking_id"] == tracking_id)
+    cid = old_t["cluster_id"]
+    _log_action(_video(new), cid, "commander", {"tracking_id": tracking_id, "is_commander": old_t["is_commander"]},
+                {"tracking_id": tracking_id, "is_commander": new_t["is_commander"], "지휘관 지정": value},
+                _level(old, cid), _level(new, cid))
+    return _respond(new)
+
+
+@bp.post("/api/clusters/<cluster_id>/stage")
+def set_stage(cluster_id):
+    """'단계 조정' 기록: 지휘관이 화면에서 바꾼 단계를 이력에만 남긴다 (계산값은 바꾸지 않음 — 팀 결정 필요).
+    본문 {"stage": 1~4 또는 null(AI 권고로 되돌림)}."""
+    run = _run()
+    if run is None:
+        return _bad("분석 결과 없음", 404)
+    ai = _level(run["result"], cluster_id)
+    if ai is None:
+        return _bad(f"군집 없음: {cluster_id}", 404)
+    stage = (request.get_json(silent=True) or {}).get("stage")
+    if stage is not None and (not isinstance(stage, int) or isinstance(stage, bool) or stage not in C.LEVELS):
+        return _bad("stage 는 1~4 정수 또는 null", 400)
+    before = run["stages"].get(cluster_id)
+    recorded = _log_action(_video(run["result"]), cluster_id, "stage", before, stage, before or ai, stage or ai)
+    if stage is None:
+        run["stages"].pop(cluster_id, None)
+    else:
+        run["stages"][cluster_id] = stage
+    return jsonify(cluster_id=cluster_id, stage=stage, ai_level=ai, recorded=recorded)
+
+
+@bp.get("/api/clusters/<cluster_id>/history")
+def cluster_history(cluster_id):
+    """그 군집의 판정·지휘관 조치 이력 (시간순). ?video= 가 없으면 지금 화면 영상."""
+    video = request.args.get("video") or STATE["current"]
+    if video is None:
+        return _bad("분석 결과 없음", 404)
+    try:
+        events = rl.history(rl.cluster_key(video, cluster_id))
+    except Exception as e:
+        log.warning("이력 조회 실패: %s", e)
+        return _bad("기록 DB 를 읽지 못함", 503)
+    return jsonify(cluster_id=cluster_id, video=video, events=events)
 
 
 def _crop_urls(rows, key="path"):
