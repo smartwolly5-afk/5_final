@@ -7,6 +7,9 @@
   GET   /api/threats/<tracking_id>          표적 1건 + 소속 군집
   PATCH /api/clusters/<cluster_id>/tactic   군집 전술 지정 {"tactic": 1~10 또는 null(자동)} → 재분석 결과
   PATCH /api/threats/<tracking_id>/commander 지휘전차 지정·해제 {"is_commander": true|false|null(자동)} → 재분석 결과
+  PATCH /api/threats/<tracking_id>/core-target 핵심표적 지정·해제 {"core": true|false} → 재분석 결과 (최소 2단계)
+  POST  /api/clusters/<cluster_id>/stage    단계 조정 기록 {"stage": 1~4 또는 null} (계산은 그대로, 이력에만)
+  GET   /api/clusters/<cluster_id>/history  판정·지휘관 조치 이력 (?video=)
   GET   /api/unknowns?limit=20              Unknown 그룹 순위
   GET   /api/unknowns/<group_id>            Unknown 그룹 상세 (출현 기록, crop, 병합 후보)
   GET   /unknowns                           분석관 화면 (Unknown 그룹 순위·crop 갤러리·출현 지도)
@@ -223,6 +226,26 @@ def set_commander(tracking_id):
     _log_action(_video(new), cid, "commander", {"tracking_id": tracking_id, "is_commander": old_t["is_commander"]},
                 {"tracking_id": tracking_id, "is_commander": new_t["is_commander"], "지휘관 지정": value},
                 _level(old, cid), _level(new, cid))
+    return _respond(new)
+
+
+@bp.patch("/api/threats/<tracking_id>/core-target")
+def set_core_target(tracking_id):
+    """핵심표적 지정·해제 {"core": true|false} → 소속 군집 재판정 (핵심표적이 있으면 최소 2단계, 랭킹 맨 위)."""
+    run = _run()
+    if run is None:
+        return _bad("분석 결과 없음", 404)
+    old_t = next((t for t in run["result"]["targets"] if t["tracking_id"] == tracking_id), None)
+    if old_t is None:
+        return _bad(f"표적 없음: {tracking_id}", 404)
+    core = (request.get_json(silent=True) or {}).get("core")
+    if not isinstance(core, bool):
+        return _bad("core 는 true 또는 false", 400)
+    old = run["result"]
+    new = _reanalyze(run, core=(run["core"] | {tracking_id}) if core else (run["core"] - {tracking_id}))
+    cid = old_t["cluster_id"]
+    _log_action(_video(new), cid, "core_target", {"tracking_id": tracking_id, "core": old_t["is_core"]},
+                {"tracking_id": tracking_id, "core": core}, _level(old, cid), _level(new, cid))
     return _respond(new)
 
 

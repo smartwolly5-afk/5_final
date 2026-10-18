@@ -160,3 +160,24 @@ def test_history_endpoint_in_time_order():
     assert [e["kind"] for e in h] == ["판정", "판정", "조치"]                  # 분석 판정 → 재판정 → 전술 조치 기록
     assert h[-1]["item"] == "tactic" and h[-1]["after"] == 3
     assert [e["kind"] for e in c.get("/api/clusters/C-1/history?video=mock_video_B.mp4").json["events"]] == ["판정"]
+
+
+# ───────── 5단계: 핵심표적 ─────────
+def test_core_target_min_level_2_and_back():
+    c = client()
+    base = c.post("/api/analyze").json
+    assert base["clusters"][0]["level"] == 3
+    r = c.patch("/api/threats/Tank-01/core-target", json={"core": True}).json
+    cl = r["clusters"][0]
+    assert cl["level"] == 2 and cl["level_before_override"] == 3 and cl["core_targets"] == ["Tank-01"]
+    assert any("핵심표적" in x and "최소 2단계" in x for x in cl["reasons"])               # 상황 패널 근거
+    first = r["targets"][0]
+    assert first["tracking_id"] == "Tank-01" and first["is_core"] and first["rank"] == 1   # 핵심표적이 랭킹 맨 위
+    assert "핵심표적 → 최소 2단계" in first["tags"]
+    back = c.patch("/api/threats/Tank-01/core-target", json={"core": False}).json
+    assert back["clusters"][0]["level"] == 3 and back["targets"][0]["tracking_id"] == "UNK-001"
+    rows = overrides()
+    assert [x["item"] for x in rows] == ["core_target", "core_target"]
+    assert (rows[0]["level_before"], rows[0]["level_after"], rows[1]["level_after"]) == (3, 2, 3)
+    assert c.patch("/api/threats/Tank-01/core-target", json={"core": "yes"}).status_code == 400
+    assert c.patch("/api/threats/NOPE/core-target", json={"core": True}).status_code == 404

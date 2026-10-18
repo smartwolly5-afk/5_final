@@ -52,6 +52,7 @@ async function init() {                                                         
     $("tp-apply").addEventListener("click", applyTactic);                                              // 전술 적용
     $("alert-banner-close").addEventListener("click", hideBanner);                                     // 배너 닫기
     $("pb-commander").addEventListener("click", toggleCommander);                                      // 지휘전차 지정·해제
+    $("pb-core").addEventListener("click", toggleCore);                                                // 핵심표적 지정·해제
     $("video-tabs").addEventListener("click", (e) => {                                                 // 영상 A/B 탭
         const v = e.target.dataset.video;
         if (v && v !== data.video) fetchResult(`/api/threats?video=${encodeURIComponent(v)}`, {});
@@ -216,7 +217,7 @@ function renderTable() {                                                 // 랭�
     body.innerHTML = ranked.map((t) => `
         <tr data-id="${esc(t.tracking_id)}">
             <td class="rank-num">${t.rank}</td>
-            <td>${esc(t.tracking_id)}</td>
+            <td>${t.is_core ? `<span class="core-star" title="핵심표적 (지휘관 지정)">★</span>` : ""}${esc(t.tracking_id)}</td>
             <td>${statusBadge(t)}${esc(modelName(t))}</td>
             <td>${threatCell(t)}</td>
             <td class="col-left tag-td"><div class="tag-cell">${t.tags.map((r) => `<span class="chip">${esc(r)}</span>`).join("")}</div></td>
@@ -342,6 +343,8 @@ function renderPanelB(t) {                                               // 오�
     const ev = t.commander_evidence;                                      // 지휘전차 근거 (v2 만)
     $("pb-commander").hidden = !ev || t.category !== "전차";
     $("pb-commander").textContent = t.is_commander ? "지휘전차 해제" : "지휘전차로 지정";
+    $("pb-core").hidden = t.rank == null;                                 // 랭킹 표적(전차·미확인)만 핵심표적 지정 가능
+    $("pb-core").textContent = t.is_core ? "핵심표적 해제" : "핵심표적 지정";
     $("pb-conf").innerHTML = `신뢰도 <b>${Math.round((t.confidence || 0) * 100)}%</b>`;  // 탐지 신뢰도
 
     const bonus = t.threat_before_bonus != null && t.threat_before_bonus !== t.threat  // cope cage 보정이 있으면 보정 전 값도
@@ -382,6 +385,14 @@ async function toggleCommander() {                                          // �
     const value = want === t.commander_evidence.on ? null : want;           // 탐지 규칙과 같아지면 지정 해제 (null = 자동)
     await fetchResult(`/api/threats/${encodeURIComponent(t.tracking_id)}/commander`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_commander: value }),
+    });
+}
+
+async function toggleCore() {                                               // 핵심표적 지정·해제 → 서버가 군집 재판정 (최소 2단계)
+    const t = targets.find((x) => x.tracking_id === selectedId);
+    if (!t) return;
+    await fetchResult(`/api/threats/${encodeURIComponent(t.tracking_id)}/core-target`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ core: !t.is_core }),
     });
 }
 

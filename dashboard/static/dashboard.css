@@ -346,7 +346,8 @@
 .stat-value { width: 78px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #pb-reasons { margin-bottom: 10px; }
 #pb-info { margin: 0 0 12px; }
-.pb-actions { display: flex; gap: 8px; }
+.pb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.core-star { color: var(--accent); margin-right: 4px; }                  /* 핵심표적 (지휘관 지정) */
 .pb-actions .btn { flex: 1; min-width: 0; }
 .pb-actions .btn[hidden] { display: none; }
 #pb-dict-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
