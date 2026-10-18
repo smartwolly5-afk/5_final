@@ -2,6 +2,7 @@
 
 판정 순서 (대응수준_산출_설명.docx 와 같은 번호)
   ① 전차별 T   Known=사전 T_k / Known_Variant=원형 기종 T_k / Unknown=유형별 상위 25% T_k
+               (차량에 "T" 가 있으면 그 값을 그대로 씀 — 대시보드가 judge.threat_of 로 미리 계산한 T. tags·threat_source 도 같이 받음)
   ② 전술 k     지휘관 override > (지휘전차 10번, 그 외 시스템 추정 전술). 전차는 1~10번만
   ③ T_cluster  군집 내 전차 T의 최댓값
   ④ 대수 N     전차+기갑차+Unknown (포병·인원 제외, 프레임별 대수의 최댓값) → 제대가중치 E
@@ -48,7 +49,8 @@ def _tactic(t):
 
 
 def assess(cluster, tanks, unknown_t, coef, _with_before=True):
-    """tanks: tank_id → {name, type_group, computable, confidence, t: [T_1..T_10]}
+    """vehicles[] 에 "T" 키가 있으면 lookup 을 쓰지 않고 그 값을 쓴다 (없을 때만 tanks 에서 t[k-1]).
+    tanks: tank_id → {name, type_group, computable, confidence, t: [T_1..T_10]}
     unknown_t: (type_group, k) → 상위 25% T.  coef: lv1, lv2, lv3, floor_t."""
     override = cluster.get("tactic_override")
     system = _tactic(cluster.get("system_tactic") or 1)
@@ -66,7 +68,11 @@ def assess(cluster, tanks, unknown_t, coef, _with_before=True):
                "is_command": bool(v.get("is_command")), "core_target": v["track_id"] in core,
                "detect_confidence": v.get("confidence"), "tank_id": v.get("tank_id"), "name": None,
                "T": None, "data_confidence": None, "tags": []}
-        if cat == "전차":
+        if "T" in v:                                       # 미리 계산된 T (대시보드: cope cage·계열 p75·지휘전차 반영)
+            row.update(T=v["T"], name=v.get("name") or (tanks.get(v.get("tank_id")) or {}).get("name"),
+                       data_confidence=v.get("data_confidence"), threat_source=v.get("threat_source"))
+            row["tags"] += list(v.get("tags") or [])
+        elif cat == "전차":
             info = tanks.get(v.get("tank_id")) if status in ("Known", "Known_Variant") else None
             if info and info["computable"]:
                 row.update(name=info["name"], T=info["t"][k - 1], data_confidence=info["confidence"])
