@@ -217,7 +217,10 @@ def history(cluster_id):
 
 
 def assess_and_save(cluster, lookup=None):
-    result = assess(cluster, *(lookup or load_lookup()))
+    """판정 + 기록. 모든 차량에 T 가 있으면(대시보드 형식) 사전 lookup 없이 경계값만 읽는다."""
+    if lookup is None:
+        lookup = ({}, {}, load_coef()) if all("T" in v for v in cluster.get("vehicles", [])) else load_lookup()
+    result = assess(cluster, *lookup)
     save_assessment(cluster, result)
     return result
 

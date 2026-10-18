@@ -194,3 +194,15 @@ def test_report_shows_ai_actions_final():
     assert "핵심표적 Tank-01 해제 → Tank-01 지정" in page and "대대장" in page      # 조치 이력
     assert "1단계 · 즉시 보고 (계산 2단계, 단계 조정)" in page                       # 최종 = 단계 조정, 계산은 2단계
     assert "★ Tank-01" in page and "UNK-G0001" in page                             # 미확인 기종 칸에 그룹 ID
+
+
+# ───────── 7단계: threat_api 가 같은 엔진 ─────────
+def test_threat_api_assess_matches_dashboard():
+    from dashboard.threat.pipeline import analyze as run
+    c = client()
+    for payload in (A, B):
+        cl = run(payload)["clusters"][0]
+        inp = dict(cl["_assess_input"], cluster_id="ext:" + payload["source"]["video"])
+        r = c.post("/api/threat/assess", json=inp)
+        assert r.status_code == 200 and r.json["level"] == cl["level"] and r.json["S"] == cl["S"] and r.json["N"] == cl["N"]
+    assert len(tdb.query("SELECT id FROM cluster_assessment WHERE cluster_id LIKE 'ext:%'")) == 2   # 같은 기록 테이블
