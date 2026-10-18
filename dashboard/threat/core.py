@@ -1,4 +1,4 @@
-"""위협도 산출 단계별 함수 (순수 계산 — Flask·DB 의존 없음, 화면 코드와 분리).
+"""전차 1대 위협도까지의 단계별 함수 (순수 계산 — Flask·DB 의존 없음, 화면 코드와 분리).
 
 탐지 결과 1건(dict) 형식:
   {"tracking_id": "Tank-03",                       # 추적 ID (영상 안에서 고유)
@@ -9,7 +9,8 @@
    "is_commander": false,                           # 지휘전차 여부
    "cluster_id": "C-1"}                             # 군집 ID (없으면 C-1)
 
-계산 순서: classify_echelon → infer_tactic → quant_score → tank_threat → threat_grade → cluster_response_level
+계산 순서: infer_tactic → quant_score → tank_threat → threat_grade
+군집 대응단계(제대·군집점수·하한)는 response_level.assess 하나로 판정한다 (변환은 adapter.py).
 """
 import json                    # tank_specs.json 읽기
 from enum import IntEnum       # 전술 번호를 이름 있는 정수로
@@ -52,15 +53,6 @@ def is_unknown(det):
     if det.get("status"):                                    # v2: Known / Known_Variant / Unknown (judge.py)
         return det["status"] == "Unknown"
     return det.get("category") == "미확인" or (det.get("category") == "전차" and spec_of(det) is None)
-
-
-def classify_echelon(detections):
-    """군집의 전차+기갑차 대수로 제대 판정 → {"n": 대수, "weight": 제대가중치, "name": 제대명}."""
-    n = sum(d.get("category") in C.ECHELON_CATEGORIES for d in detections)  # 전차·기갑차만 셈 (True=1)
-    for lo, weight, name in C.ECHELONS:   # 대대(16) → 중대(5) → 소대(1) 순서로 검사
-        if n >= lo:                        # 최소 대수 이상이면 그 제대
-            return {"n": n, "weight": weight, "name": name}
-    return {"n": 0, "weight": 0, "name": "없음"}  # 전투차량이 없으면 가중치 0 → 군집점수 0
 
 
 def infer_tactic(detections):
@@ -108,29 +100,3 @@ def threat_grade(score):
     if score is None:                                         # 미확인·제원 없음 → 단계 없음
         return None
     return next(name for lo, name in C.THREAT_GRADES if score >= lo)  # 위에서부터 처음 만족하는 구간
-
-
-def cluster_response_level(cluster):
-    """군집 대응단계.
-    입력 cluster = {"detections": [탐지...], "threats": [전차 위협도 또는 None, ...]}
-    출력 {"level": 1~4, "label", "score": 군집점수, "t_cluster": 군집 최고 위협도, "echelon", "reasons": [판정 근거 문장]}"""
-    dets = cluster["detections"]                                               # 군집에 속한 모든 탐지
-    threats = [t for t in cluster.get("threats", []) if t is not None]        # 점수가 있는 전차만
-    ech = classify_echelon(dets)                                               # 제대 (소대·중대·대대)
-    t_cluster = max(threats, default=0.0)                                      # 군집 위협도 = 가장 위험한 전차 점수
-    score = round(t_cluster * ech["weight"], 1)                                # 군집점수 = 군집 위협도 × 제대가중치
-    level = next((lv for th, lv in C.LEVEL_THRESHOLDS if score >= th), 4)      # 225/150/75 경계로 1~3단계, 미만은 4단계
-
-    reasons = [f"{ech['name']}급 {ech['n']}대 ×{ech['weight']}" if ech["n"] else "전투차량 없음",  # 근거 1: 제대
-               f"군집점수 {score:g} = 최고 위협도 {t_cluster:g} × {ech['weight']} → {level}단계"]    # 근거 2: 점수 판정
-    if level == 4:                                                             # 하한 규칙은 4단계일 때만 의미 있음
-        floors = []                                                            # 적용된 하한 규칙
-        if any(is_unknown(d) for d in dets):                                   # 미확인 표적이 있으면
-            floors.append("미확인 포함 → 4단계 불가")
-        if any(t >= C.FLOOR_TANK_THREAT for t in threats):                     # 위협도 75 이상 전차가 있으면
-            floors.append(f"위협도 {C.FLOOR_TANK_THREAT} 이상 전차 → 4단계 불가")
-        if floors:                                                             # 하나라도 해당하면
-            level = 3                                                          # 3단계로 올림
-            reasons += floors                                                  # 근거에 하한 규칙 추가
-    return {"level": level, "label": C.LEVELS[level], "score": score, "t_cluster": t_cluster,
-            "echelon": ech, "reasons": reasons}

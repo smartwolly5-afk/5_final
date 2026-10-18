@@ -13,7 +13,11 @@
    "clusters": [Cluster, ...],                                                # 군집별 대응단계
    "targets":  [Target, ...]}                                                 # rank 순서 (전차·미확인), 그 뒤 순위 없는 표적
   Cluster = {"cluster_id", "level", "label", "score", "t_cluster", "echelon": {"n", "weight", "name"},
-             "tactic", "tactic_name", "tactic_source": "시스템 추정"|"지휘관 지정", "reasons": [...], "track_ids": [...]}
+             "tactic", "tactic_name", "tactic_source": "시스템 추정"|"지휘관 지정", "reasons": [...], "track_ids": [...],
+             "floors": [{"rule", "min_level", "reason", "text", "applied"}],          # 하한 규칙 (검사한 것 전부)
+             "S", "E", "N", "score_level",                                           # 군집점수·제대가중치·대수·점수만으로 본 단계
+             "level_before_override", "core_targets"}                                # 지휘관 조치(전술·지휘전차·핵심표적) 전 단계
+  판정은 response_level.assess 하나 (adapter.py 가 변환). 내부 필드 _assess_input·_assess_result 는 기록 저장용 (API 로 안 나감)
   Target  = {"tracking_id", "category", "model", "confidence", "bbox", "is_commander", "is_unknown", "is_new",
              "cluster_id", "rank"|null, "threat"|null, "grade"|null,                    # 전차 1대 위협도와 단계
              "scores": {"firepower","mobility","protection","total"}|null, "weights": {...}|null,
@@ -24,19 +28,22 @@
              "status": "Known"|"Known_Variant"|"Unknown", "tank_id", "family", "type_group", "threat_source",   # 위협도를 어디서 가져왔는지
              "threat_before_bonus", "has_cope_cage", "cope_tag", "commander_evidence": {"n", "m", "on", "override"}|null,
              "parts": [{"cls", "conf", "bbox"}], "n_frames",
+             "is_core",                                                               # 지휘관이 지정한 핵심표적 (랭킹 맨 위)
              "unknown_group_id", "crop_url"}                                          # 이 둘은 dashboard/__init__.py 가 채움
   source 에는 v2 일 때 "frame_image" (화면에 띄울 프레임, static 기준 경로), "frame_idx" 가 붙는다.
+  alert 에는 "cluster_id" (가장 심각한 군집) 가 붙는다.
 GET /api/threats/<id> 응답: {"target": Target, "cluster": 소속 Cluster}
 """
 import json          # mock 파일 읽기
 import math          # 위치 추정 삼각함수
 from pathlib import Path
 
+from . import adapter as AD
 from . import config as C
 from . import judge as J
 from . import track as TR
-from .core import (CATEGORIES, TACTIC_NAMES, Tactic, cluster_response_level, infer_tactic, is_unknown,
-                   quant_score, spec_of, tactic_weights, tank_threat, threat_grade)
+from .core import (CATEGORIES, TACTIC_NAMES, Tactic, infer_tactic, is_unknown, quant_score, spec_of, tactic_weights,
+                   tank_threat, threat_grade)
 
 MOCK_FILE = Path(__file__).with_name("mock_detections.json")  # v1 탐지 결과 (하위 호환 테스트용)
 MOCK_DIR = Path(__file__).resolve().parents[2] / "static" / "mock_frames"
@@ -106,7 +113,7 @@ def _commander_tag(row):
 
 def _target_tags(row, scores):
     """근거 태그 = 이 전차의 위협도를 설명하는 사실만 (군집 판정 근거는 Cluster.reasons 로 따로 감)."""
-    tags = []
+    tags = ["핵심표적 → 최소 2단계"] if row["is_core"] else []                     # 지휘관 지정 (군집 하한 규칙)
     cmd = _commander_tag(row)
     if cmd:
         tags.append(cmd)                                                               # 지휘통제 가중치가 적용된 이유
@@ -129,8 +136,9 @@ def _target_tags(row, scores):
 
 
 def _v2_detections(payload, commander_overrides):
-    """v2 입력 → 트랙 단위 탐지 목록 (v1 탐지 형식 + status, _v2). 전차·미확인만 판정한다."""
+    """v2 입력 → (트랙 단위 탐지 목록 (v1 탐지 형식 + status, _v2), 화면 프레임, 프레임별 tracking_id 목록). 전차·미확인만 판정."""
     tracks, shown = TR.aggregate(payload)
+    frame_ids = [[d["tracking_id"] for d in f["detections"]] for f in payload["frames"]]   # 제대 대수: 프레임별 최댓값
     dets = []
     for t in tracks:
         j = J.judge(t) if t["category"] in RANKED else None
@@ -145,20 +153,24 @@ def _v2_detections(payload, commander_overrides):
                      "is_commander": t["commander"]["on"] if ov is None else ov,
                      "status": j["status"] if j else None,
                      "_v2": {"track": t, "judge": j, "commander": dict(t["commander"], override=ov)}})
-    return dets, shown
+    return dets, shown, frame_ids
 
 
-def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None):
+def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None, core_targets=None, coef=None):
     """payload(입력 형식) → AnalysisResult.
     prev            = 직전 분석 결과 (신규 표적·단계 변화 비교용, 없으면 None)
     tactic_overrides = {cluster_id: 전술번호} — 화면 '전술 선택'으로 지휘관이 지정한 전술 (그 군집 전차 전부에 적용)
     commander_overrides = {tracking_id: bool} — 지휘관이 지휘전차를 지정·해제 (v2 만)
+    core_targets     = {tracking_id, ...} — 지휘관이 지정한 핵심표적 (그 군집 최소 2단계, 랭킹 맨 위)
+    coef             = 판정 경계값 (없으면 response_level.load_coef: DB threat_coef → config 기본값)
     v2 표적에는 레지스트리 저장용 내부 필드 "_track" 이 붙는다 (API 로 내보내기 전에 dashboard/__init__.py 가 뗌)."""
     if TR.is_v2(payload):
-        dets, shown = _v2_detections(payload, commander_overrides or {})
+        dets, shown, frame_ids = _v2_detections(payload, commander_overrides or {})
         source = dict(payload["source"], frame_image=shown.get("image_path"), frame_idx=shown["frame_idx"])
     else:
-        dets, source = _validate(payload), payload["source"]                           # 입력 검증
+        dets, source, frame_ids = _validate(payload), payload["source"], None        # 입력 검증 (v1 은 프레임 정보 없음)
+    coef = coef or AD.load_coef()
+    core = set(core_targets or ())
     prev_ids = {t["tracking_id"] for t in prev["targets"]} if prev else None           # 직전 표적 ID 목록
     overrides = tactic_overrides or {}
 
@@ -188,7 +200,7 @@ def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None)
                    "status": d.get("status") or ("Unknown" if is_unknown(d) else "Known"),
                    "tank_id": None, "family": None, "type_group": None, "threat_source": None, "threat_before_bonus": None, "cope_tag": None,
                    "has_cope_cage": False, "commander_evidence": None, "parts": [], "n_frames": 1,
-                   "unknown_group_id": None, "crop_url": None}
+                   "is_core": d["tracking_id"] in core, "unknown_group_id": None, "crop_url": None}
             v2 = d.get("_v2")
             if v2:                                                                     # v2: 트랙 집계·판정 결과
                 t, j = v2["track"], v2["judge"]
@@ -213,7 +225,8 @@ def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None)
             row["tags"] = _target_tags(row, row["scores"])                             # 근거 태그
             rows.append(row)
 
-        res = cluster_response_level({"detections": members, "threats": [r["threat"] for r in rows]})  # 군집 대응단계
+        res = AD.assess_cluster(cid, rows, members, frame_ids, tactic, "지휘관 지정" if override else "시스템 추정",
+                                core, coef)                                    # 군집 대응단계 (response_level.assess)
         for r in rows:
             r.update(level=res["level"], label=res["label"])                           # 표적에 소속 군집 단계 기록
             r["tags"].append(f"{cid} 소속")                                              # 어느 군집인지
@@ -222,9 +235,10 @@ def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None)
                              track_ids=[r["tracking_id"] for r in rows]))
         targets += rows
 
-    # 랭킹: 전차·미확인만. 위협도 높은 순, 점수 없는 미확인은 맨 뒤 (그 안에서는 군집 단계 순)
+    # 랭킹: 전차·미확인만. 핵심표적 → 위협도 높은 순, 점수 없는 미확인은 맨 뒤 (그 안에서는 군집 단계 순)
+    # 지휘전차는 태그로만 표시하고 순서에는 넣지 않는다 (response_level 의 군집 안 순서와 다름 — 팀 결정 필요)
     ranked = sorted((t for t in targets if t["category"] in RANKED),
-                    key=lambda t: (t["threat"] is None, -(t["threat"] or 0), t["level"]))
+                    key=lambda t: (not t["is_core"], t["threat"] is None, -(t["threat"] or 0), t["level"]))
     for i, t in enumerate(ranked, 1):
         t["rank"] = i
     targets = ranked + [t for t in targets if t["rank"] is None]                       # 순위 없는 표적(기갑차·포병·인원)은 뒤에
@@ -236,7 +250,12 @@ def analyze(payload, prev=None, tactic_overrides=None, commander_overrides=None)
 
     top = min(clusters, key=lambda c: (c["level"], -c["score"]), default=None)        # 가장 심각한 군집
     level = top["level"] if top else 4
+    if tactic_overrides or commander_overrides or core:                               # 지휘관 조치 전 단계 = 조치 없이 다시 계산
+        before = {c["cluster_id"]: c["level"] for c in analyze(payload, prev, coef=coef)["clusters"]}
+        for c in clusters:
+            c["level_before_override"] = before.get(c["cluster_id"], c["level"])
     alert = {"level": level, "label": C.LEVELS[level], "prev_level": prev["alert"]["level"] if prev else None,
+             "cluster_id": top["cluster_id"] if top else None,
              "banner": level == 1,                                                     # 1단계면 화면 상단 배너
              "message": (f"{top['cluster_id']} {top['echelon']['name']}급 {top['echelon']['n']}대 · {top['tactic_name']}"
                          f" · 군집점수 {top['score']:g}") if top else "탐지 표적 없음"}

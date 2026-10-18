@@ -6,8 +6,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # 5_final 폴더 (dashboard 패키지가 있는 곳)
 
-from dashboard.threat import (Tactic, analyze, classify_echelon, cluster_response_level, infer_tactic,  # noqa: E402
+import response_level as rl  # noqa: E402  제대 표 (판정 엔진 통합 후 response_level.ECHELONS 한 곳)
+from dashboard.threat import (Tactic, analyze, cluster_response_level, infer_tactic,  # noqa: E402
                               load_mock, quant_score, tank_threat, threat_grade)
+from dashboard.threat import config as C  # noqa: E402
 from dashboard.threat.core import SPECS  # noqa: E402
 
 
@@ -23,13 +25,17 @@ def many(n, cat="전차", model="T-72B3"):
 @pytest.mark.parametrize("n, weight, name", [(0, 0, "없음"), (1, 1, "소대"), (4, 1, "소대"), (5, 2, "중대"),
                                              (15, 2, "중대"), (16, 3, "대대")])
 def test_echelon_boundaries(n, weight, name):
-    e = classify_echelon(many(n))
-    assert (e["n"], e["weight"], e["name"]) == (n, weight, name)
+    # 엔진 통합: 제대 판정은 core.classify_echelon → response_level.echelon (같은 경계 1·5·16대)
+    assert rl.echelon(n) == (weight, name)
+    assert cluster_response_level({"detections": many(n), "threats": [80] if n else []})["echelon"] ==         {"n": n, "weight": weight, "name": name}
 
 
-def test_echelon_counts_apc_but_not_artillery_infantry_unknown():
+def test_echelon_counts_apc_but_not_artillery_infantry_unknown(monkeypatch):
     dets = many(3) + many(2, "기갑차", "BMP-2") + many(5, "포병", "2S19") + many(5, "인원", None) + many(5, "미확인", None)
-    assert classify_echelon(dets)["n"] == 5
+    # 엔진 통합 규칙 변경: 공식 규칙 ④ 는 미확인도 대수에 넣음 (ECHELON_COUNT_UNKNOWN=True 기본) → 5 + 미확인 5 = 10
+    assert cluster_response_level({"detections": dets, "threats": [70]})["echelon"]["n"] == 10
+    monkeypatch.setattr(C, "ECHELON_COUNT_UNKNOWN", False)          # 예전 대시보드 방식: 전차·기갑차만
+    assert cluster_response_level({"detections": dets, "threats": [70]})["echelon"]["n"] == 5
 
 
 def test_infer_tactic():
@@ -70,7 +76,7 @@ def test_levels_by_score():
 
 def test_floor_unknown():
     r = cluster_response_level({"detections": many(1) + [det("미확인", None, i=9)], "threats": [40]})
-    assert r["score"] == 40 and r["level"] == 3
+    assert r["score"] == 40 and r["level"] == 3                     # 미확인도 대수에 들어가 2대(소대 ×1) — 점수는 같음
     assert any("미확인" in x for x in r["reasons"])
 
 
@@ -80,10 +86,13 @@ def test_floor_unlisted_model_counts_as_unknown():
 
 
 def test_floor_strong_tank():
-    # 무게 0(전투차량 없음)이면 점수 0이지만 75 이상 전차가 있으면 4단계 불가
-    r = cluster_response_level({"detections": [], "threats": [80]})
-    assert r["score"] == 0 and r["level"] == 3
-    assert cluster_response_level({"detections": [], "threats": [74.9]})["level"] == 4
+    # 엔진 통합 규칙 변경: 위협도는 탐지(차량)에 붙어서만 들어감 → 위협도 있는 전차는 늘 대수에 들어가 E≥1.
+    # 그래서 예전 '전투차량 0대인데 위협도 80' 경우는 없어지고, 하한 규칙은 floors 목록으로 확인한다
+    r = cluster_response_level({"detections": [det("기갑차", "BMP-2")], "threats": [80]})   # 기갑차라 강한 전차 하한은 아님
+    assert r["level"] == 3 and r["score"] == 80
+    strong = cluster_response_level({"detections": many(1), "threats": [80]})
+    assert any(f["rule"].startswith("T≥") and f["applied"] is False for f in strong["floors"])  # 점수로 이미 3단계
+    assert cluster_response_level({"detections": many(1), "threats": [74.9]})["level"] == 4
 
 
 def test_commander_does_not_raise_level():

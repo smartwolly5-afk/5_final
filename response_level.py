@@ -20,10 +20,12 @@ assess() 는 순수 함수(조회 데이터를 인자로 받음). DB 연동은 �
  "frames": [["trk-1", "trk-9"], ["trk-1"]]}
 """
 import json
+import logging
 
 LEVELS = {1: ("즉시 보고", "적"), 2: ("우선 감시", "주황"), 3: ("지속 감시", "황"), 4: ("관심", "청")}
 ECHELONS = [(16, 3, "대대"), (5, 2, "중대"), (1, 1, "소대")]  # (최소 대수, E, 제대명)
 COMMAND_TACTIC = 10
+log = logging.getLogger(__name__)
 
 
 def echelon(n):
@@ -37,9 +39,11 @@ def level_of(score, coef):
     return 4
 
 
-def _counts(r):
-    """제대 대수 N 에 넣는 차량: 전차·기갑차, 그리고 분류가 포병·인원이 아닌 Unknown (④)."""
-    return r["category"] in ("전차", "기갑차") or (r["status"] == "Unknown" and r["category"] not in ("포병", "인원"))
+def _counts(r, count_unknown=True):
+    """제대 대수 N 에 넣는 차량: 전차·기갑차, 그리고 분류가 포병·인원이 아닌 Unknown (④).
+    count_unknown=False 면 전차·기갑차만 (예전 대시보드 방식, dashboard/threat/config.py ECHELON_COUNT_UNKNOWN)."""
+    return r["category"] in ("전차", "기갑차") or (count_unknown and r["status"] == "Unknown"
+                                                   and r["category"] not in ("포병", "인원"))
 
 
 def _tactic(t):
@@ -89,7 +93,7 @@ def assess(cluster, tanks, unknown_t, coef, _with_before=True):
             row["tags"].append("분석관 검토")
         rows.append(row)
 
-    counted = {r["track_id"] for r in rows if _counts(r)}
+    counted = {r["track_id"] for r in rows if _counts(r, cluster.get("echelon_count_unknown", True))}
     frames = cluster.get("frames")
     if frames:
         n = max(sum(1 for t in f if t in counted) for f in frames)
@@ -133,14 +137,30 @@ def assess(cluster, tanks, unknown_t, coef, _with_before=True):
 
 
 # ───────────────────────────── DB 연동 ─────────────────────────────
+COEF_KEYS = ("lv1", "lv2", "lv3", "floor_t")
+
+
+def load_coef():
+    """판정 경계값 lv1·lv2·lv3·floor_t. DB threat_coef 가 기준이고, 테이블이 없거나 값이 빠졌으면
+    dashboard/threat/config.py 의 LEVEL_THRESHOLDS·FLOOR_TANK_THREAT 를 기본값으로 쓴다 (경계값 조회는 이 함수 하나)."""
+    from dashboard.threat import config as C          # 함수 안에서 import (dashboard 패키지와 순환 import 방지)
+    coef = {f"lv{lv}": th for th, lv in C.LEVEL_THRESHOLDS}
+    coef["floor_t"] = C.FLOOR_TANK_THREAT
+    try:
+        import threat_db as tdb
+        coef.update({r["k"]: r["v"] for r in tdb.query("SELECT k, v FROM threat_coef") if r["k"] in COEF_KEYS})
+    except Exception as e:                            # DB 없음·테이블 없음 → 기본값
+        log.warning("threat_coef 를 못 읽어 config 기본 경계값 사용: %s", e)
+    return coef
+
+
 def load_lookup():
     import threat_db as tdb
     tanks = {r["tank_id"]: {"name": r["canonical_name"], "type_group": r["type_group"], "computable": bool(r["computable"]),
                             "confidence": r["confidence"], "t": [r[f"t{i}"] for i in range(1, 11)]}
              for r in tdb.query("SELECT * FROM tank_threat")}
     unknown_t = {(r["type_group"], r["tactic_no"]): r["t_p75"] for r in tdb.query("SELECT * FROM type_threat_summary")}
-    coef = {r["k"]: r["v"] for r in tdb.query("SELECT k, v FROM threat_coef")}
-    return tanks, unknown_t, coef
+    return tanks, unknown_t, load_coef()
 
 
 def assess_and_save(cluster, lookup=None):

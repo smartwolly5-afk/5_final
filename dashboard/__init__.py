@@ -68,6 +68,9 @@ def _attach(result, new):
             except Exception as e:                                     # 레지스트리 DB 가 꺼져 있어도 대시보드는 보여 준다
                 log.warning("Unknown 레지스트리 저장 실패 (%s %s): %s", video, t["tracking_id"], e)
         del t["_track"]
+    for c in result["clusters"]:                                       # 판정 엔진 입력·결과 (기록 저장용 내부 필드)
+        c.pop("_assess_input", None)
+        c.pop("_assess_result", None)
     return result
 
 
