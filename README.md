@@ -45,13 +45,16 @@ copy .env.example .env
 # 3. DB, 테이블, 예시 데이터 생성 (다시 실행해도 안전)
 python init_db.py
 
-# 4. 서버 실행 → http://127.0.0.1:5000
+# 4. 서버 실행 → http://127.0.0.1:5000  (디버거가 필요하면 먼저 $env:FLASK_DEBUG="1")
 python app.py
 ```
 
 DB 연결 확인: http://127.0.0.1:5000/db-check
 
-사전 엑셀(`5_data/tank_dictionary_v2.xlsx`, 새 tank_id TANK_0001~0369)을 고친 뒤 DB에 반영:
+사전 엑셀(`tank_dictionary_v2.xlsx`, 새 tank_id TANK_0001~0369)과 계수 엑셀(`위협도_컬럼_산출.xlsx`)은 저장소에 없습니다.
+`TANK_DATA_DIR` 환경변수 폴더 → 저장소 폴더 → 저장소 바로 위 폴더 순서로 찾습니다 (`config.data_file`).
+
+사전 엑셀을 고친 뒤 DB에 반영 (중간에 실패하면 기존 테이블이 그대로 남습니다):
 
 ```powershell
 python load_xlsx.py        # tank_specs 전체 교체

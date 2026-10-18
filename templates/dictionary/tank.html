@@ -35,10 +35,10 @@
 {% if threat %}
 <aside class="panel threat-panel" aria-label="위협도 지수">
     <h2 class="tp-title">위협도 지수</h2>
-    <p class="tp-sub">기동·직접전투 기준 · 기준전차 M1A1 = 100</p>
+    <p class="tp-sub">화력·기동·방호 평균 (전술 가중치 없음) · 기준전차 M1A1 = 100</p>
     <div class="tp-score">
-        {% if threat.t1 is not none %}
-        <span class="tp-num">{{ '%.1f'|format(threat.t1) }}</span>
+        {% if threat.score is not none %}
+        <span class="tp-num">{{ '%.1f'|format(threat.score) }}</span>
         <span class="tp-delta">기준전차 대비 {{ '%+.1f'|format(threat.delta) }}</span>
         {% else %}
         <span class="tp-na" title="{{ threat.missing }}" tabindex="0">데이터 부족 · 산출 불가</span>

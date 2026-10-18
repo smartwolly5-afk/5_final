@@ -18,6 +18,19 @@
 .crumbs a:hover { color: var(--primary); }
 .crumbs .sep { display: inline-flex; }
 .crumbs .here { color: var(--text); font-weight: 600; }
+.crumbs a.back-btn {                 /* 뒤로가기: 경로 맨 앞 작은 버튼 */
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+}
+.crumbs a.back-btn:hover { background: var(--surface-soft); color: var(--primary-strong); }
 
 /* 목록 머리글 */
 .list-head { margin: 0 0 12px; font-size: 15px; font-weight: 700; }
@@ -124,6 +137,14 @@
     justify-items: center;
 }
 .dict-empty p { margin: 4px 0 0; }
+.db-error {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--stage1);
+    border-radius: var(--radius);
+    background: var(--stage1-soft);
+    color: var(--stage1);
+}
 
 /* ===== 국가 목록: 태그 + 나라명 ===== */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }

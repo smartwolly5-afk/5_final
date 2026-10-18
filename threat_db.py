@@ -4,6 +4,7 @@ SQL은 MySQL 문법(%s 자리표시자, REPLACE INTO)으로 쓰고, SQLite에서
 REPLACE INTO 는 두 DB 모두 지원하므로 upsert 를 따로 나누지 않는다.
 """
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -48,10 +49,26 @@ def execute(sql, params=(), many=False):
         conn.close()
 
 
+def execute_all(steps):
+    """[(sql, params, many), ...] 를 연결 하나에서 실행하고 마지막에 한 번만 커밋한다.
+    중간에 실패하면 전부 취소 (DELETE 후 다시 넣는 작업이 반쯤 끝난 채로 남지 않게)."""
+    conn = connect()
+    try:
+        cur = conn.cursor()
+        for sql, params, many in steps:
+            (cur.executemany if many else cur.execute)(_sql(sql), params)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def init_schema():
     sql = (HERE / "schema_threat.sql").read_text(encoding="utf-8")
     sql = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--"))
     if demo():
         sql = sql.replace("BIGINT AUTO_INCREMENT PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
-    for stmt in filter(str.strip, sql.split(";")):
+    for stmt in filter(str.strip, re.split(r";[ \t]*(?:\n|$)", sql)):  # 줄 끝의 ';' 로만 나눔
         execute(stmt)

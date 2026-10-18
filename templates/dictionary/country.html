@@ -51,7 +51,7 @@
 
     <section class="panel side-panel">
         <h2 class="side-title">위협도 분포</h2>
-        <p class="side-sub">기동·직접전투 기준 · 기준전차 M1A1 = 100</p>
+        <p class="side-sub">화력·기동·방호 평균 (전술 가중치 없음) · 기준전차 M1A1 = 100</p>
         <div class="side-bars">
             {% for b in stats.bins %}
             <div class="sb-row{{ ' sb-na' if b.stage is none }}">
@@ -68,7 +68,7 @@
         <h2 class="side-title">위협도 상위</h2>
         <ol class="side-top">
             {% for r in stats.top %}
-            <li><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a><b>{{ '%.1f'|format(r.t1) }}</b></li>
+            <li><a href="{{ url_for('dictionary.tank', tank_id=r.t.tank_id) }}">{{ r.t.canonical_name }}</a><b>{{ '%.1f'|format(r.score) }}</b></li>
             {% endfor %}
         </ol>
     </section>

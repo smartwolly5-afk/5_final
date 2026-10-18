@@ -7,17 +7,16 @@
 계수를 바꾼 뒤 다시 돌리면 전체가 재계산된다.
 """
 import argparse
-from pathlib import Path
 
 import openpyxl
 import pandas as pd
 
 import threat_db as tdb
+from config import data_file
 from threat_calc import coefs_from_sheets, compute
 
-ROOT = Path(__file__).resolve().parent.parent
-COEF_XLSX = ROOT / "위협도_컬럼_산출.xlsx"
-DICT_XLSX = ROOT / "tank_dictionary_v2.xlsx"
+COEF_XLSX = data_file("위협도_컬럼_산출.xlsx")   # 위치: config.data_file (TANK_DATA_DIR → 저장소 → 그 위 폴더)
+DICT_XLSX = data_file("tank_dictionary_v2.xlsx")
 # 대응수준 경계값 (엑셀에는 없음). 68/136/204 비교 실험은 이 값만 바꾸면 된다
 LEVEL_DEFAULTS = {"lv1": (225, "S ≥ lv1 → 1단계 즉시 보고"), "lv2": (150, "S ≥ lv2 → 2단계 우선 감시"),
                   "lv3": (75, "S ≥ lv3 → 3단계 지속 감시"), "floor_t": (75, "T ≥ floor_t 전차 포함 → 최소 3단계")}
@@ -71,12 +70,6 @@ def sync(dict_path=None):
             "출력대중량비", "장갑", "높이", "구경_src", "구경장_src", "탄종_src", "세대_src", "출력대중량비_src", "장갑_src",
             "높이_src", "장갑 규칙", "ERA", "ERA_src", "F", "M", "P"] + [f"T_{i}" for i in range(1, 11)]
     rows = [tuple(v(x) for x in r) for r in X[cols].itertuples(index=False)]
-    tdb.execute("DELETE FROM tank_threat")
-    tdb.execute(
-        "REPLACE INTO tank_threat (tank_id, canonical_name, family_name, type_group, computable, confidence, cal_mm, cal_len,"
-        " ammo, gen, pw, armor, height, cal_src, len_src, ammo_src, gen_src, pw_src, armor_src, height_src, armor_rule,"
-        " era_ref, era_src, f, m, p, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)"
-        f" VALUES ({', '.join(['%s'] * len(cols))})", rows, many=True)
 
     ok = X[X.산출가능]
     summary = []
@@ -86,9 +79,17 @@ def sync(dict_path=None):
             if t in g.groups:
                 # PERCENTILE(…, 0.75) 와 같은 선형 보간 (pandas 기본)
                 summary.append((t, k, int(g.count()[t]), round(g.median()[t], 2), round(g.quantile(0.75)[t], 2)))
-    tdb.execute("DELETE FROM type_threat_summary")
-    tdb.execute("REPLACE INTO type_threat_summary (type_group, tactic_no, n, t_median, t_p75) VALUES (%s,%s,%s,%s,%s)",
-                summary, many=True)
+    # 두 테이블을 한 트랜잭션으로 교체: 중간에 실패하면 이전 값이 그대로 남는다 (빈 테이블로 판정하지 않게)
+    tdb.execute_all([
+        ("DELETE FROM tank_threat", (), False),
+        ("REPLACE INTO tank_threat (tank_id, canonical_name, family_name, type_group, computable, confidence, cal_mm, cal_len,"
+         " ammo, gen, pw, armor, height, cal_src, len_src, ammo_src, gen_src, pw_src, armor_src, height_src, armor_rule,"
+         " era_ref, era_src, f, m, p, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)"
+         f" VALUES ({', '.join(['%s'] * len(cols))})", rows, True),
+        ("DELETE FROM type_threat_summary", (), False),
+        ("REPLACE INTO type_threat_summary (type_group, tactic_no, n, t_median, t_p75) VALUES (%s,%s,%s,%s,%s)",
+         summary, True),
+    ])
     return {"seeded": seeded, "tanks": len(rows), "computable": int(len(ok)), "summary_rows": len(summary)}
 
 

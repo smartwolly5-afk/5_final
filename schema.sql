@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS tank_specs (
     generation           VARCHAR(100),                 -- 쉼표로 여러 개 가능
     origin_country       VARCHAR(50),
     manufacturer         VARCHAR(255),
-    service_year         VARCHAR(100),                 -- '1998', '2009~2014년', '1945 for M26 1949 for M46' 등
+    service_year         VARCHAR(255),                 -- '1998', '2009~2014년', '1945 for M26 1949 for M46' 등
     operator_countries   VARCHAR(255),                 -- 쉼표 또는 ' | ' 로 구분
     crew                 TINYINT,
     combat_weight_t      DECIMAL(6, 2),

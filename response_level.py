@@ -4,7 +4,7 @@
   ① 전차별 T   Known=사전 T_k / Known_Variant=원형 기종 T_k / Unknown=유형별 상위 25% T_k
   ② 전술 k     지휘관 override > (지휘전차 10번, 그 외 시스템 추정 전술). 전차는 1~10번만
   ③ T_cluster  군집 내 전차 T의 최댓값
-  ④ 대수 N     전차+기갑차+Unknown (포병 제외, 프레임별 대수의 최댓값) → 제대가중치 E
+  ④ 대수 N     전차+기갑차+Unknown (포병·인원 제외, 프레임별 대수의 최댓값) → 제대가중치 E
   ⑤ S = T_cluster × E → 경계값(threat_coef lv1/lv2/lv3)으로 단계
   ⑥ 하한       Unknown·T≥floor_t → 최소 3단계, 핵심표적 → 최소 2단계
   ⑦ 우선순위   핵심표적 → 지휘전차 → T 내림차순
@@ -20,7 +20,7 @@ assess() 는 순수 함수(조회 데이터를 인자로 받음). DB 연동은 �
 """
 import json
 
-LEVELS = {1: ("즉시 보고", "적"), 2: ("우선 감시", "주황"), 3: ("지속 감시", "황"), 4: ("경계", "청")}
+LEVELS = {1: ("즉시 보고", "적"), 2: ("우선 감시", "주황"), 3: ("지속 감시", "황"), 4: ("관심", "청")}
 ECHELONS = [(16, 3, "대대"), (5, 2, "중대"), (1, 1, "소대")]  # (최소 대수, E, 제대명)
 COMMAND_TACTIC = 10
 
@@ -34,6 +34,11 @@ def level_of(score, coef):
         if score >= coef[key]:
             return lv
     return 4
+
+
+def _counts(r):
+    """제대 대수 N 에 넣는 차량: 전차·기갑차, 그리고 분류가 포병·인원이 아닌 Unknown (④)."""
+    return r["category"] in ("전차", "기갑차") or (r["status"] == "Unknown" and r["category"] not in ("포병", "인원"))
 
 
 def _tactic(t):
@@ -78,11 +83,10 @@ def assess(cluster, tanks, unknown_t, coef, _with_before=True):
             row["tags"].append("분석관 검토")
         rows.append(row)
 
-    by_id = {r["track_id"]: r for r in rows}
-    counted = [r for r in rows if r["category"] != "포병"]
+    counted = {r["track_id"] for r in rows if _counts(r)}
     frames = cluster.get("frames")
     if frames:
-        n = max(sum(1 for t in f if t in by_id and by_id[t]["category"] != "포병") for f in frames)
+        n = max(sum(1 for t in f if t in counted) for f in frames)
     else:
         n = len(counted)
     e, ech = echelon(n)

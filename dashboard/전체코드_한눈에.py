@@ -59,7 +59,7 @@ ECHELON_CATEGORIES = ("전차", "기갑차")  # 대수에 넣는 분류. 포병�
 
 LEVEL_THRESHOLDS = [(225, 1), (150, 2), (75, 3)]  # 군집점수가 이 값 이상이면 그 단계. 모두 미만이면 4단계
 FLOOR_TANK_THREAT = 75                            # 위협도 75 이상 전차가 있는 군집은 4단계(가장 약함)로 못 내려감
-LEVELS = {1: "즉시 보고", 2: "우선 감시", 3: "지속 감시", 4: "경계"}  # 대응단계 이름. 1이 가장 심각
+LEVELS = {1: "즉시 보고", 2: "우선 감시", 3: "지속 감시", 4: "관심"}  # 대응단계 이름. 1이 가장 심각
 
 CAMERA_FOV_DEG = 60  # 카메라 가로 시야각(도). 박스가 화면 어디 있는지 → 방위로 바꿀 때 사용
 DISTANCE_K = 2000    # 거리(m) ≈ 2000 × 10 ÷ 박스 높이(%). 박스 높이 10%면 2km (mock 추정)
@@ -180,7 +180,7 @@ def cluster_response_level(cluster):
     ech = classify_echelon(dets)                                            # 제대 (소대·중대·대대)
     t_cluster = max(threats, default=0.0)                                   # 군집 위협도 = 가장 위험한 전차 1대의 점수
     score = round(t_cluster * ech["weight"], 1)                             # 군집점수 = 군집 위협도 × 제대가중치
-    level = 4                                                               # 기본은 4단계(경계)
+    level = 4                                                               # 기본은 4단계(관심)
     for th, lv in LEVEL_THRESHOLDS:                                         # 225 → 150 → 75 순서로
         if score >= th:                                                     # 경계값 이상이면
             level = lv                                                      # 그 단계
@@ -252,9 +252,15 @@ def _validate(payload):
         bbox = d.get("bbox") or {}                                           # 박스 (없으면 빈 dict)
         if not all(isinstance(bbox.get(k), (int, float)) for k in "xywh"):   # x,y,w,h 가 모두 숫자인지
             raise ValueError(f"{d['tracking_id']}: bbox x,y,w,h 숫자 필요")
+        c = d.get("confidence")                                              # 탐지 신뢰도 (없어도 됨)
+        if c is not None and not (isinstance(c, (int, float)) and not isinstance(c, bool) and 0 <= c <= 1):
+            raise ValueError(f"{d['tracking_id']}: confidence 는 0~1 숫자 또는 null")  # 화면이 toFixed() 로 표시
     obs = (payload.get("source") or {}).get("observer") or {}                # 관측 지점
     if not all(isinstance(obs.get(k), (int, float)) for k in ("lat", "lon")):  # 위경도 숫자인지
         raise ValueError("source.observer.lat/lon 필요")
+    h = obs.get("heading_deg")                                               # 카메라 방향 (없으면 0)
+    if h is not None and not (isinstance(h, (int, float)) and not isinstance(h, bool)):
+        raise ValueError("source.observer.heading_deg 는 숫자")              # 위치 추정 계산에 씀
     return dets                                                              # 검증 통과한 탐지 목록
 
 

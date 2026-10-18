@@ -14,6 +14,7 @@
     {% with active = 'dictionary' %}{% include '_nav.html' %}{% endwith %}
 
     <div class="dict-body">
+        {% if g.db_error %}<p class="db-error" role="alert">DB에서 전차 데이터를 읽지 못했습니다. 서버 로그와 <a href="/db-check">DB 연결 상태</a>를 확인하세요.</p>{% endif %}
         {% block content %}{% endblock %}
     </div>
 
@@ -22,6 +23,9 @@
     </footer>
 </div>
 <script>
+    document.querySelectorAll("[data-back]").forEach((a) => a.addEventListener("click", (e) => {
+        if (document.referrer.startsWith(location.origin) && history.length > 1) { e.preventDefault(); history.back(); }
+    }));
     document.querySelectorAll("tr[data-href]").forEach((tr) =>
         tr.addEventListener("click", (e) => e.target.closest("a") || (location.href = tr.dataset.href)));
 </script>

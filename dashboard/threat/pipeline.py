@@ -52,6 +52,11 @@ def estimate_position(det, observer):
             "estimated": True}                                                        # 화면에 '추정 위치'로 표시
 
 
+def _num(d, k):
+    """d[k] 가 숫자인지 (True/False 는 숫자로 치지 않음)."""
+    return isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)
+
+
 def _validate(payload):
     """입력 검증 (외부에서 들어오는 값이라 필수). 문제가 있으면 ValueError → API 400."""
     dets = payload.get("detections") if isinstance(payload, dict) else None
@@ -66,11 +71,15 @@ def _validate(payload):
         seen.add(d["tracking_id"])
         if d.get("category") not in CATEGORIES:
             raise ValueError(f"{d['tracking_id']}: category 는 {'/'.join(CATEGORIES)} 중 하나")
-        if not all(isinstance((d.get("bbox") or {}).get(k), (int, float)) for k in "xywh"):
+        if not all(_num(d.get("bbox") or {}, k) for k in "xywh"):
             raise ValueError(f"{d['tracking_id']}: bbox x,y,w,h 숫자 필요")
+        if d.get("confidence") is not None and not (_num(d, "confidence") and 0 <= d["confidence"] <= 1):
+            raise ValueError(f"{d['tracking_id']}: confidence 는 0~1 숫자 또는 null")  # 화면이 toFixed() 로 표시
     obs = (payload.get("source") or {}).get("observer") or {}
-    if not all(isinstance(obs.get(k), (int, float)) for k in ("lat", "lon")):
+    if not all(_num(obs, k) for k in ("lat", "lon")):
         raise ValueError("source.observer.lat/lon 필요")
+    if obs.get("heading_deg") is not None and not _num(obs, "heading_deg"):
+        raise ValueError("source.observer.heading_deg 는 숫자")                       # 위치 추정 계산에 씀
     return dets
 
 

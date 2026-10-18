@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 
 from dashboard import bp as dashboard_bp
@@ -20,8 +22,9 @@ def db_check():
         conn.close()
         return {"status": "ok", "message": "DB 연결 성공"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}, 500
+        app.logger.warning("DB 연결 실패: %s", e)  # 자세한 원인(계정·호스트)은 서버 로그에만
+        return {"status": "error", "message": "DB 연결 실패 (서버 로그 확인)"}, 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.getenv("FLASK_DEBUG") == "1")  # 디버거는 코드 실행이 가능하므로 명시적으로 켤 때만

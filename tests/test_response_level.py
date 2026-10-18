@@ -18,6 +18,9 @@ def db(tmp_path_factory):
     os.environ["TANKLAB_SQLITE"] = str(tmp_path_factory.mktemp("db") / "test.sqlite3")
     import response_level as rl
     import sync_threat_db
+    missing = [f.name for f in (sync_threat_db.COEF_XLSX, sync_threat_db.DICT_XLSX) if not f.is_file()]
+    if missing:  # 데이터 엑셀은 저장소에 없음 → 위치는 config.data_file (TANK_DATA_DIR → 저장소 → 그 위 폴더)
+        pytest.skip(f"데이터 엑셀 없음: {', '.join(missing)}")
     sync_threat_db.sync()
     yield rl, rl.load_lookup()
     for k, v in old.items():

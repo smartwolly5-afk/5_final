@@ -130,7 +130,7 @@ def threat_grade(score):
 
 
 # ════════════════════════════════════════════════════════════════════
-# [4] 군집 대응단계 (1 즉시 보고 ~ 4 경계)
+# [4] 군집 대응단계 (1 즉시 보고 ~ 4 관심)
 # ════════════════════════════════════════════════════════════════════
 
 def cluster_response_level(detections, threats):
@@ -195,9 +195,15 @@ def validate(payload):
             raise ValueError(f"{d['tracking_id']}: category 는 {'/'.join(CATEGORIES)} 중 하나")
         if not all(isinstance((d.get("bbox") or {}).get(k), (int, float)) for k in "xywh"):  # 박스 x,y,w,h 가 숫자가 아니면
             raise ValueError(f"{d['tracking_id']}: bbox x,y,w,h 숫자 필요")
+        c = d.get("confidence")                                        # 탐지 신뢰도 (없어도 됨)
+        if c is not None and not (isinstance(c, (int, float)) and not isinstance(c, bool) and 0 <= c <= 1):
+            raise ValueError(f"{d['tracking_id']}: confidence 는 0~1 숫자 또는 null")  # 화면이 toFixed() 로 표시
     obs = (payload.get("source") or {}).get("observer") or {}          # 관측 위치
     if not all(isinstance(obs.get(k), (int, float)) for k in ("lat", "lon")):  # 위경도가 숫자가 아니면
         raise ValueError("source.observer.lat/lon 필요")
+    h = obs.get("heading_deg")                                         # 카메라 방향 (없으면 0)
+    if h is not None and not (isinstance(h, (int, float)) and not isinstance(h, bool)):
+        raise ValueError("source.observer.heading_deg 는 숫자")        # 위치 추정 계산에 씀
     return dets                                                        # 통과하면 탐지 목록 돌려줌
 
 

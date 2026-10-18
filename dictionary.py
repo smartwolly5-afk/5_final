@@ -1,10 +1,9 @@
 """전차 사전: 전차 제원 원본 데이터 조회 전용 (위협도 계산과 무관)."""
-import math
 import re
 from pathlib import Path
 from collections import Counter, defaultdict
 
-from flask import Blueprint, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, g, redirect, render_template, request, url_for
 from jinja2 import Undefined
 from markupsafe import Markup, escape
 
@@ -35,8 +34,9 @@ def load_tanks():
                 return cur.fetchall()
         finally:
             conn.close()
-    except Exception as e:  # DB가 꺼져 있어도 사전 화면은 빈 상태로 열리도록
+    except Exception as e:  # DB가 꺼져 있어도 사전 화면은 열리되, '데이터 없음'과 구분되게 경고를 띄운다
         current_app.logger.warning("tank_specs 조회 실패: %s", e)
+        g.db_error = True  # dictionary/base.html 이 경고 문구 표시
         return []
 
 
@@ -113,21 +113,11 @@ FALSE_WORDS = {"0", "n", "no", "false", "x", "없음", "무", "미보유"}
 def is_missing(v):
     if v is None or isinstance(v, Undefined):
         return True
-    if isinstance(v, float) and math.isnan(v):
-        return True
-    if isinstance(v, str) and v.strip().lower() in ("", "nan", "none", "null", "-"):
-        return True
-    if isinstance(v, (list, tuple)) and not v:
-        return True
-    return False
+    return isinstance(v, str) and v.strip().lower() in ("", "nan", "none", "null", "-")
 
 
 def text(v):
-    if is_missing(v):
-        return ""
-    if isinstance(v, (list, tuple)):
-        return ", ".join(str(x) for x in v)
-    return str(v).strip()
+    return "" if is_missing(v) else str(v).strip()
 
 
 def to_number(v):
@@ -154,13 +144,6 @@ def fmt_bool(v):
     if s.lower() in FALSE_WORDS:
         return "없음"
     return f"있음 ({s})"  # 유무 대신 장비명이 들어온 경우
-
-
-def coverage_pct(v):
-    n = to_number(v)
-    if n is None:
-        return None
-    return n * 100 if 0 < n <= 1 else n  # 0~1 비율로 저장된 경우도 허용
 
 
 def display(field, value):
@@ -218,7 +201,7 @@ def year_key(t):
 
 def representative(tanks):
     """대표 전차: 제원 충족률이 가장 높은 것, 같으면 최신 도입."""
-    return max(tanks, key=lambda t: (coverage_pct(t.get("spec_coverage_%")) or 0,
+    return max(tanks, key=lambda t: (to_number(t.get("spec_coverage_%")) or 0,  # 0~100 (load_xlsx 계산)
                                      to_number(t.get("service_year")) or 0), default=None)
 
 
@@ -289,20 +272,27 @@ def country_page(tanks, country):
                            q=q, sort=sort, stats=country_stats(mine))
 
 
-# 위협도 구간 (tank_threat.t1, 기동·직접전투, 기준전차 M1A1 = 100). 색은 style.css 의 --stage1~4
+# 위협도 구간 (정량 위협도, 기준전차 M1A1 = 100). 색은 style.css 의 --stage1~4
 THREAT_BINS = [(100, "100 이상", 1), (70, "70 ~ 100", 2), (40, "40 ~ 70", 3), (0, "40 미만", 4)]
 
 
-def load_t1(ids):
-    """tank_id 목록 → {tank_id: t1 또는 None}. tank_threat 이 없으면 빈 dict."""
+def quant_threat(r):
+    """사전 위협도 = 100 × (화력 F + 기동력 M + 방호력 P) / 3. 전술 가중치 없는 정량 평가 (기준전차 = 100).
+    전술 가중치를 반영한 T_1~T_10 은 대시보드·/api/threat 용이라 사전에서는 쓰지 않는다. 하나라도 없으면 None."""
+    fmp = [r.get(a) for a in ("f", "m", "p")]
+    return None if any(v is None for v in fmp) else round(100 * sum(float(v) for v in fmp) / 3, 1)
+
+
+def load_scores(ids):
+    """tank_id 목록 → {tank_id: 정량 위협도 또는 None}. tank_threat 이 없으면 빈 dict."""
     if not ids:
         return {}
     try:
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute(f"SELECT tank_id, t1 FROM tank_threat WHERE tank_id IN ({', '.join(['%s'] * len(ids))})", ids)
-                return {r["tank_id"]: (None if r["t1"] is None else float(r["t1"])) for r in cur.fetchall()}
+                cur.execute(f"SELECT tank_id, f, m, p FROM tank_threat WHERE tank_id IN ({', '.join(['%s'] * len(ids))})", ids)
+                return {r["tank_id"]: quant_threat(r) for r in cur.fetchall()}
         finally:
             conn.close()
     except Exception as e:
@@ -313,13 +303,13 @@ def load_t1(ids):
 def country_stats(tanks):
     """국가 페이지 오른쪽 패널: 전차 종류별 개수, 위협도 구간별 개수, 위협도 상위 3."""
     types = Counter(norm_type(t.get("tank_type")) or "미분류" for t in tanks).most_common()
-    t1 = load_t1([text(t.get("tank_id")) for t in tanks])
-    scored = [(v, t) for t in tanks if (v := t1.get(text(t.get("tank_id")))) is not None]
+    scores = load_scores([text(t.get("tank_id")) for t in tanks])
+    scored = [(v, t) for t in tanks if (v := scores.get(text(t.get("tank_id")))) is not None]
     bins = [{"label": label, "stage": stage, "n": 0} for _, label, stage in THREAT_BINS]
     for v, _ in scored:
         bins[next(i for i, (lo, _, _) in enumerate(THREAT_BINS) if v >= lo)]["n"] += 1
     bins.append({"label": "산출 불가", "stage": None, "n": len(tanks) - len(scored)})
-    top = [{"t": t, "t1": round(v, 1)} for v, t in sorted(scored, key=lambda x: -x[0])[:3]]
+    top = [{"t": t, "score": v} for v, t in sorted(scored, key=lambda x: -x[0])[:3]]
     return {"types": types, "type_max": max((n for _, n in types), default=1),
             "bins": bins, "bin_max": max((b["n"] for b in bins), default=1) or 1, "top": top}
 
@@ -400,7 +390,7 @@ def tank_image(tank_id):
     return None
 
 
-THREAT_COLS = "tank_id, canonical_name, family_name, computable, f, m, p, t1, cal_src, len_src, pw_src, armor_src, height_src"
+THREAT_COLS = "tank_id, canonical_name, family_name, computable, f, m, p, cal_src, len_src, pw_src, armor_src, height_src"
 # 지수별 계산 입력 (threat_calc.py_threat 기준) → 산출 불가 툴팁에 쓰는 이름
 AXIS_INPUTS = {"f": [("cal_src", "주포 구경"), ("len_src", "구경장")],
                "m": [("pw_src", "출력대중량비(마력·전투중량)")],
@@ -439,15 +429,15 @@ def threat_panel(row, family_rows):
     if row is None:
         return None
     pct = lambda v: None if v is None else round(float(v) * 100, 1)
-    t1 = None if row["t1"] is None else round(float(row["t1"]), 1)
+    score = quant_threat(row)
     peers = [{"name": r["canonical_name"], "tank_id": r["tank_id"], **{a: pct(r[a]) for a, _ in AXES}}
-             for r in family_rows if r["t1"] is not None]
+             for r in family_rows if quant_threat(r) is not None]
     bars = [{"key": a, "label": label, "value": pct(row[a]),
              "missing": None if row[a] is not None else missing_reason(row, a)} for a, label in AXES]
     values = [b["value"] for b in bars if b["value"] is not None] + [p[a] for p in peers for a, _ in AXES if p[a] is not None]
     scale = max(150, -(-max(values, default=0) // 50) * 50)  # 50 단위 올림, 최소 150 (기준선 100이 항상 보이게)
-    return {"t1": t1, "delta": None if t1 is None else round(t1 - 100, 1),
-            "missing": None if t1 is not None else missing_reason(row, "f"),
+    return {"score": score, "delta": None if score is None else round(score - 100, 1),
+            "missing": None if score is not None else missing_reason(row, next(a for a, _ in AXES if row[a] is None)),
             "bars": bars, "peers": peers, "scale": scale}
 
 
