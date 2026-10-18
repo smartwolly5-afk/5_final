@@ -194,6 +194,7 @@ def test_report_shows_ai_actions_final():
     assert "핵심표적 Tank-01 해제 → Tank-01 지정" in page and "대대장" in page      # 조치 이력
     assert "1단계 · 즉시 보고 (계산 2단계, 단계 조정)" in page                       # 최종 = 단계 조정, 계산은 2단계
     assert "★ Tank-01" in page and "UNK-G0001" in page                             # 미확인 기종 칸에 그룹 ID
+    assert "AI 권고 3단계" in page and "지휘관 조치 반영 2단계" in page              # 맨 위 종합: AI 와 조치 반영 단계 구분
 
 
 # ───────── 7단계: threat_api 가 같은 엔진 ─────────

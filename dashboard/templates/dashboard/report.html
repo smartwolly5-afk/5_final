@@ -31,8 +31,13 @@
 
 {# ── 1. 종합 대응단계 ── #}
 <h2>1. 종합 대응단계</h2>
+{% set top = r.clusters|selectattr('cluster_id', 'equalto', r.alert.cluster_id)|first %}
+{% set ai = top.level_before_override if top else r.alert.level %}
 <p>
-    <span class="level stage{{ r.alert.level }}">AI 권고 {{ r.alert.level }}단계 · {{ r.alert.label }}</span>
+    <span class="level stage{{ ai }}">AI 권고 {{ ai }}단계 · {{ levels[ai] }}</span>
+    {% if ai != r.alert.level %}
+    → <span class="level stage{{ r.alert.level }}">지휘관 조치 반영 {{ r.alert.level }}단계 · {{ r.alert.label }}</span>
+    {% endif %}
     {% if stage and stage != r.alert.level %}
     → <span class="level stage{{ stage }}">지휘관 결정 {{ stage }}단계 · {{ levels[stage] }}</span>
     {% endif %}
